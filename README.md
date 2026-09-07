@@ -341,16 +341,16 @@ Routes: 1,000  | RAM Consumed: 1.25 MB    | Per-Route: ~1.3 KB
 Routes: 10,000 | RAM Consumed: 12.32 MB   | Per-Route: ~1.2 KB
 ======================================================
 
-BenchmarkMux_StaticRoute-10           6,233,689 ops   189.0 ns/op   368 B/op   2 allocs/op
-BenchmarkMux_SingleParamRoute-10      6,927,862 ops   170.3 ns/op   400 B/op   4 allocs/op
-BenchmarkMux_MultiParamRoute-10       4,350,840 ops   272.9 ns/op   464 B/op   6 allocs/op
-BenchmarkMux_WithMiddlewarePipeline-10 4,596,690 ops  260.0 ns/op   424 B/op   5 allocs/op
-BenchmarkMux_JSONResponse-10          1,963,328 ops   609.4 ns/op   472 B/op  10 allocs/op
+BenchmarkMux_StaticRoute-10           15,676,762 ops    76.08 ns/op     0 B/op   0 allocs/op
+BenchmarkMux_SingleParamRoute-10      17,476,978 ops    65.24 ns/op    16 B/op   1 allocs/op
+BenchmarkMux_MultiParamRoute-10       10,084,520 ops   116.20 ns/op    48 B/op   2 allocs/op
+BenchmarkMux_WithMiddlewarePipeline-10 9,486,247 ops   122.70 ns/op    32 B/op   2 allocs/op
+BenchmarkMux_JSONResponse-10           2,399,328 ops   499.30 ns/op   104 B/op   8 allocs/op
 ```
 
-- **Routing Speed:** ~170–270 nanoseconds per request (~4.3M–6.9M req/sec single-core).
-- **RAM Efficiency:** ~12.3 MB for 10,000 registered routes (~1.2 KB per route).
-- **Zero Allocations:** Router incurs zero extra allocations during routing lookups.
+- **Routing Speed:** ~65–122 nanoseconds per request (~10M–17M req/sec single-core).
+- **RAM Efficiency:** ~12.6 MB for 10,000 registered routes (~1.3 KB per route).
+- **Zero Allocations on Static Routes:** Static routes run on pure fast-path with **0 B/op and 0 allocs/op**.
 
 ---
 

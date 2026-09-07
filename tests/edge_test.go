@@ -78,7 +78,6 @@ func TestEdgeCase_PathCleanupRedirectPreserved(t *testing.T) {
 	}
 }
 
-
 // 3. Deeply Nested Routes & Prefix Formatting (redundant slashes)
 func TestEdgeCase_DeeplyNestedPrefixes(t *testing.T) {
 	r := routemux.New()

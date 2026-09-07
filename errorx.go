@@ -114,4 +114,3 @@ var (
 	InternalServerError  = create(http.StatusInternalServerError)
 	ContentTooLargeError = create(http.StatusRequestEntityTooLarge)
 )
-

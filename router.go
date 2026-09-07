@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // Mux wraps standard http.ServeMux with route groups, middlewares, and error handling.
@@ -16,13 +17,18 @@ type Mux struct {
 	root         *Mux
 	routesLocked bool
 	rootCount    int
+	compileOnce  *sync.Once
+	compiled     *http.Handler
 }
 
 // New creates a new Router instance.
 func New() *Mux {
+	var compiled http.Handler
 	return &Mux{
-		mux:        http.NewServeMux(),
-		errHandler: defaultErrHandler,
+		mux:         http.NewServeMux(),
+		errHandler:  defaultErrHandler,
+		compileOnce: new(sync.Once),
+		compiled:    &compiled,
 	}
 }
 
@@ -112,6 +118,8 @@ func (m *Mux) With(middle ...Middleware) *Mux {
 		notFound:    m.notFound,
 		root:        root,
 		rootCount:   rootCount,
+		compileOnce: root.compileOnce,
+		compiled:    root.compiled,
 	}
 }
 
@@ -142,6 +150,8 @@ func (m *Mux) Route(prefix string, fn func(r *Mux)) {
 		notFound:    m.notFound,
 		root:        root,
 		rootCount:   rootCount,
+		compileOnce: root.compileOnce,
+		compiled:    root.compiled,
 	}
 	fn(subGroup)
 	if subGroup.routesLocked && m.root == nil {
@@ -254,36 +264,58 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if m.root != nil {
 		root = m.root
 	}
-	// Probe route and pattern for this request from underlying ServeMux
-	_, pattern := m.mux.Handler(req)
-	// If pattern was found, expose r.Pattern so global middlewares can inspect it
-	if pattern != "" {
-		req2 := *req
-		req2.Pattern = pattern
-		req = &req2
-	}
-	muxHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if pattern == "" && root.notFound != nil {
-			handler, currentPattern := m.mux.Handler(req)
-			if currentPattern != "" {
-				m.mux.ServeHTTP(w, req)
-				return
-			}
-			// Probe to see if it's a true 404 or a redirect/method mismatch
-			probe := &statusRecorder{status: http.StatusOK}
-			handler.ServeHTTP(probe, req)
-			if probe.status != http.StatusNotFound {
-				m.mux.ServeHTTP(w, req)
-				return
-			}
-			// True 404: invoke custom notFound handler
-			root.notFound.ServeHTTP(w, req)
-			return
-		}
+
+	// Fast-path: When no custom 404 and no global middlewares, dispatch directly to ServeMux with ZERO overhead!
+	if root.notFound == nil && len(root.middlewares) == 0 {
 		m.mux.ServeHTTP(w, req)
-	})
-	// Wrap root-level global middlewares around muxHandler
-	root.wrapGlobal(muxHandler).ServeHTTP(w, req)
+		return
+	}
+
+	root.compileOnce.Do(root.compile)
+	(*root.compiled).ServeHTTP(w, req)
+}
+
+// compile prepares the root middleware and 404 pipeline once at startup.
+func (m *Mux) compile() {
+	var handler http.Handler = m.mux
+
+	if m.notFound != nil {
+		notFoundHandler := m.notFound
+		handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			h, pattern := m.mux.Handler(req)
+			if pattern != "" {
+				h.ServeHTTP(w, req)
+				return
+			}
+			probe := &statusRecorder{status: http.StatusOK}
+			h.ServeHTTP(probe, req)
+			if probe.status != http.StatusNotFound {
+				h.ServeHTTP(w, req)
+				return
+			}
+			notFoundHandler.ServeHTTP(w, req)
+		})
+	}
+
+	// Pre-wrap root-level global middlewares once at startup
+	for i := len(m.middlewares) - 1; i >= 0; i-- {
+		handler = m.middlewares[i](handler)
+	}
+
+	// If global middlewares exist, expose req.Pattern directly without struct copying
+	if len(m.middlewares) > 0 {
+		inner := handler
+		handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.Pattern == "" {
+				if _, pattern := m.mux.Handler(req); pattern != "" {
+					req.Pattern = pattern
+				}
+			}
+			inner.ServeHTTP(w, req)
+		})
+	}
+
+	*m.compiled = handler
 }
 
 // ServeMux returns the underlying *http.ServeMux instance.
@@ -312,18 +344,6 @@ func (m *Mux) wrapMiddleware(handler http.Handler) http.Handler {
 
 	for i := len(m.middlewares) - 1; i >= start; i-- {
 		handler = m.middlewares[i](handler)
-	}
-	return handler
-}
-
-// wrapGlobal applies only the root bundle's middlewares to the provided handler.
-func (m *Mux) wrapGlobal(handler http.Handler) http.Handler {
-	root := m
-	if m.root != nil {
-		root = m.root
-	}
-	for i := len(root.middlewares) - 1; i >= 0; i-- {
-		handler = root.middlewares[i](handler)
 	}
 	return handler
 }

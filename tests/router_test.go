@@ -360,4 +360,3 @@ func TestRouter_HandleFiles(t *testing.T) {
 		t.Fatalf("unexpected status %d", rec.Code)
 	}
 }
-
