@@ -1,6 +1,6 @@
 # routemux
 
-A lightweight, high-performance, and ergonomic HTTP micro-router built directly on Go 1.22+ standard library `http.ServeMux`.
+A lightweight, high-performance, and ergonomic HTTP micro-router built directly on Go 1.27+ standard library `http.ServeMux`.
 
 `routemux` combines the speed and stability of the Go standard library with developer-friendly ergonomics inspired by modern frameworks like Chi and Fiber—**without external dependencies, without regex overhead, and with 100% compile-time type safety**.
 
@@ -8,15 +8,22 @@ A lightweight, high-performance, and ergonomic HTTP micro-router built directly 
 
 ## Highlights
 
+- 🚀 **Modern Go 1.27+ Architecture:** Leverages next-generation standard library capabilities including `encoding/json/v2` and `errors.AsType`.
 - ⚡ **Ultra-Fast & Lightweight:** Sub-microsecond routing (~170ns) and ~1.3 KB RAM footprint per route.
-- 🎯 **Go 1.22+ Native Routing:** Uses standard library path patterns (`/{id}`, `/{path...}`) and method matching.
+- 🎯 **Native Path Patterns:** Uses standard library path patterns (`/{id}`, `/{path...}`) and HTTP method matching.
 - 🛡️ **Zero External Dependencies:** Built entirely with standard library Go packages.
 - 🔒 **100% Type-Safe:** No `any` casting on routes; handlers accept both standard `func(w, r)` and ergonomic `func(w, r) error`.
 - 🧅 **Two-Tier Middleware Architecture:**
   - **Global (`Use`):** Applies to all routes and custom 404 handlers.
   - **Scoped (`With`):** Applies only to specific routes or chained sub-groups without leaking.
 - 🌳 **Modular Routing (`Route`):** Clean sub-routing closures for feature modules.
-- 📦 **Built-in Helpers:** JSON serialization, request binding, query helpers, typed context helpers (`Set`/`Get`), and structured HTTP errors (`errorx`).
+- 📦 **Built-in Helpers:** JSON serialization (`encoding/json/v2`), request binding, query helpers, typed context helpers (`Set`/`Get`), and structured HTTP errors (`errorx`).
+
+---
+
+## Requirements
+
+- **Go 1.27+** is required (utilizes `encoding/json/v2` and `errors.AsType`).
 
 ---
 
