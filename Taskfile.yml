@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  test:
+    desc: Run all unit tests
+    cmds:
+      - go test -v ./tests/...
+
+  test:race:
+    desc: Run all unit tests with data race detector
+    cmds:
+      - go test -race -v ./tests/...
+
+  test:cover:
+    desc: Run unit tests with coverage summary
+    cmds:
+      - go test -coverprofile=coverage.out ./tests/...
+      - go tool cover -func=coverage.out
+    generates:
+      - coverage.out
+
+  test:cover:html:
+    desc: Generate HTML test coverage report
+    cmds:
+      - task: test:cover
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Coverage report generated at coverage.html"
+    generates:
+      - coverage.html
+
+  bench:
+    desc: Run CPU speed and memory allocation benchmarks
+    cmds:
+      - go test -bench=. -benchmem ./tests/... -run=^#
+
+  bench:ram:
+    desc: Measure router RAM footprint at scale
+    cmds:
+      - go test -v -run=TestRouter_MemoryFootprint ./tests/...
+
+  mod:tidy:
+    desc: Clean up and sync go.mod and go.sum
+    cmds:
+      - go mod tidy
+
+  mod:verify:
+    desc: Verify dependencies have expected content
+    cmds:
+      - go mod verify
+
+  fmt:
+    desc: Format all Go source files
+    cmds:
+      - go fmt ./...
+
+  vet:
+    desc: Run go vet to analyze source code
+    cmds:
+      - go vet ./...
+
+  check:
+    desc: Run fmt, vet, and race tests (pre-push check)
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: test:race
+
+  example:
+    desc: Run the example HTTP server
+    cmds:
+      - go run ./example/main.go
