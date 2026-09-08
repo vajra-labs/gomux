@@ -1,41 +1,34 @@
 # routemux
 
-A lightweight, high-performance, and ergonomic HTTP micro-router built directly on Go 1.27+ standard library `http.ServeMux`.
+[![Go Reference](https://pkg.go.dev/badge/github.com/vajra-labs/routemux.svg)](https://pkg.go.dev/github.com/vajra-labs/routemux)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vajra-labs/routemux)](https://goreportcard.com/report/github.com/vajra-labs/routemux)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.27-00ADD8?logo=go)](go.mod)
 
-`routemux` combines the speed and stability of the Go standard library with developer-friendly ergonomics inspired by modern frameworks like Chi and Fiber—**without external dependencies, without regex overhead, and with 100% compile-time type safety**.
+`routemux` is an idiomatic, lightweight, and high-performance HTTP micro-router and middleware stack for Go built directly on Go 1.27+ standard library `http.ServeMux`.
+
+If you love the reliability and speed of the Go standard library, but want the ergonomics of modern web frameworks like Chi or Fiber—without adding heavy external dependencies, regex overhead, or non-idiomatic abstractions—then `routemux` is a great fit.
 
 ---
 
 ## Highlights
 
-- 🚀 **Modern Go 1.27+ Architecture:** Leverages next-generation standard library capabilities including `encoding/json/v2` and `errors.AsType`.
-- ⚡ **Ultra-Fast & Lightweight:** Sub-microsecond routing (~170ns) and ~1.3 KB RAM footprint per route.
-- 🎯 **Native Path Patterns:** Uses standard library path patterns (`/{id}`, `/{path...}`) and HTTP method matching.
-- 🛡️ **Zero External Dependencies:** Built entirely with standard library Go packages.
-- 🔒 **100% Type-Safe:** No `any` casting on routes; handlers accept both standard `func(w, r)` and ergonomic `func(w, r) error`.
+- 🚀 **Built for Modern Go (1.27+):** Leverages next-generation standard library capabilities including `encoding/json/v2` and `errors.AsType`.
+- ⚡ **Zero-Overhead Routing:** Sub-microsecond execution (~75ns static routes) and zero heap allocations (`0 B/op`, `0 allocs/op`).
+- 🛡️ **Zero External Dependencies:** Built 100% on the Go standard library.
+- 🎯 **Native Path Patterns:** Uses Go's native pattern matching (`/{id}`, wildcards `/{file...}`) and HTTP verb routing.
+- 🔒 **100% Compile-Time Type Safety:** No generic `any` casting on routes; accepts both `func(w, r)` and ergonomic `func(w, r) error`.
 - 🧅 **Two-Tier Middleware Architecture:**
-  - **Global (`Use`):** Applies to all routes and custom 404 handlers.
-  - **Scoped (`With`):** Applies only to specific routes or chained sub-groups without leaking.
-- 🌳 **Modular Routing (`Route`):** Clean sub-routing closures for feature modules.
-- 📦 **Built-in Helpers:** JSON serialization (`encoding/json/v2`), request binding, query helpers, typed context helpers (`Set`/`Get`), and structured HTTP errors (`errorx`).
+  - **Global (`Use`):** Covers all routes and custom 404 handlers.
+  - **Scoped (`With`):** Applies isolated middlewares to specific routes or sub-groups without leaking.
+- 🌳 **Sub-Routing & Route Groups (`Route`):** Clean, modular sub-routing closures for feature modules.
+- 📦 **Built-in Helpers:** JSON serialization (`encoding/json/v2`), request binding, query helpers, typed context storage (`Set`/`Get`), and structured HTTP errors (`errorx`).
 
 ---
 
-## Requirements
+## Getting Started
 
-- **Go 1.27+** is required (utilizes `encoding/json/v2` and `errors.AsType`).
-
----
-
-## Installation
-
-```bash
-go get github.com/vajra-labs/routemux
-```
-
----
-
-## Quick Start
+After installing Go (>= 1.27), create your first `.go` file. We'll call it `server.go`:
 
 ```go
 package main
@@ -58,7 +51,7 @@ func main() {
 		})
 	})
 
-	// 2. Standard & Error-Returning Handlers
+	// 2. Handlers with error-return ergonomics
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
 		return routemux.JSON(w, http.StatusOK, routemux.Map{
 			"message": "Welcome to routemux!",
@@ -78,13 +71,27 @@ func main() {
 }
 ```
 
+Install the package:
+
+```bash
+go get github.com/vajra-labs/routemux
+```
+
+Then run your server:
+
+```bash
+go run server.go
+```
+
+You now have a production-grade, standard `net/http` web server running on `localhost:8080`.
+
 ---
 
-## Routing Guide
+## Routing
 
 ### HTTP Methods
 
-All standard HTTP verbs are supported:
+All standard HTTP methods are directly supported with dedicated methods:
 
 ```go
 r.Get("/items", listItems)
@@ -95,16 +102,16 @@ r.Delete("/items/{id}", deleteItem)
 r.Options("/items", optionsHandler)
 r.Head("/items/{id}", headHandler)
 
-// Match any HTTP method
+// Match any HTTP method on a path
 r.All("/health", healthHandler)
 
-// Custom HTTP method
+// Register custom HTTP methods
 r.On("PURGE", "/cache", purgeHandler)
 ```
 
 ### Path Parameters
 
-`routemux` leverages Go 1.22+ native path pattern matching:
+`routemux` leverages Go's native path pattern matching:
 
 ```go
 // Single Path Parameter
@@ -123,7 +130,23 @@ r.Get("/orgs/{orgId}/repos/{repoId}", func(w http.ResponseWriter, req *http.Requ
 // Wildcard / Catch-All
 r.Get("/static/{file...}", func(w http.ResponseWriter, req *http.Request) error {
     filePath := req.PathValue("file")
-    return routemux.Text(w, http.StatusOK, "Path: "+filePath)
+    return routemux.Text(w, http.StatusOK, "File: "+filePath)
+})
+```
+
+### Flexible Handlers
+
+Handlers accept either standard `http.HandlerFunc` or error-returning functions:
+
+```go
+// 1. Standard signature:
+r.Get("/ping", func(w http.ResponseWriter, req *http.Request) {
+    w.Write([]byte("pong"))
+})
+
+// 2. Error-returning signature:
+r.Get("/ping", func(w http.ResponseWriter, req *http.Request) error {
+    return routemux.JSON(w, http.StatusOK, routemux.Map{"message": "pong"})
 })
 ```
 
@@ -131,7 +154,13 @@ r.Get("/static/{file...}", func(w http.ResponseWriter, req *http.Request) error 
 
 ## Middlewares
 
-### 1. Global Middlewares (`Use`)
+Middleware in `routemux` follows the standard Go signature:
+
+```go
+type Middleware func(http.Handler) http.Handler
+```
+
+### `Use()` (Global Middleware)
 
 Middlewares registered via `r.Use()` wrap the entire router, executing on every matching route and even on **404 Not Found** responses:
 
@@ -140,20 +169,20 @@ r.Use(loggerMiddleware)
 r.Use(corsMiddleware)
 ```
 
-> **Note:** `Use()` must be declared before defining routes. Registering `Use()` after routes will safely panic to avoid silent bugs.
+> **Note:** `Use()` must be declared before registering routes. Registering `Use()` after routes will safely panic to prevent order-of-execution bugs.
 
-### 2. Scoped & Inline Middlewares (`With`)
+### `With()` (Scoped & Inline Middleware)
 
-Use `With()` to apply middlewares to a single route or a chain without leaking to other endpoints:
+`With()` creates a sub-router with scoped middlewares. It lets you apply middlewares to a single route or chain them for specific sub-groups without leaking to other endpoints:
 
 ```go
-// Single Route with Middleware
+// Single Route with inline middleware
 r.With(authGuard).Get("/me", getProfile)
 
-// Route with Multiple Middlewares (auth -> rateLimit -> handler)
+// Route with multiple chained middlewares (auth -> rateLimit -> handler)
 r.With(authGuard, rateLimit).Post("/transfer", transferFunds)
 
-// Sub-router grouping
+// Sub-router grouping with shared middleware
 admin := r.With(authGuard, adminOnly)
 admin.Get("/dashboard", adminDashboard)
 admin.Delete("/users/{id}", deleteUser)
@@ -161,22 +190,22 @@ admin.Delete("/users/{id}", deleteUser)
 
 ---
 
-## Sub-Routing & Modularity (`Route`)
+## Sub-Routing (`Route`)
 
-Group related routes under a common URL prefix cleanly using closures:
+Group related routes cleanly under a common URL prefix using closures:
 
 ```go
 r.Route("/api/v1", func(api *routemux.Mux) {
     api.Use(apiVersionLogger)
 
-    // Mount /api/v1/auth
+    // Sub-route: /api/v1/auth
     api.Route("/auth", func(auth *routemux.Mux) {
         auth.Post("/login", loginHandler)
         auth.Post("/register", registerHandler)
         auth.With(authGuard).Post("/logout", logoutHandler)
     })
 
-    // Mount /api/v1/users
+    // Sub-route: /api/v1/users
     api.Route("/users", func(users *routemux.Mux) {
         users.Use(authGuard)
         users.Get("/", listUsers)
@@ -185,9 +214,9 @@ r.Route("/api/v1", func(api *routemux.Mux) {
 })
 ```
 
-### Modular Router Pattern (Production Structure)
+### Modular Router Pattern (Production Organization)
 
-For large projects, organize route registration by domain:
+For large codebases, organize routes by domain controller:
 
 ```go
 type UserRouter struct {
@@ -215,7 +244,7 @@ postRouter.Register(app)
 
 ### 1. Returning Errors from Handlers
 
-Handlers can return standard Go `error` values or structured `errorx.HttpError`:
+Handlers can return standard Go `error` values or structured `HttpError`:
 
 ```go
 r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
@@ -227,9 +256,9 @@ r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
 })
 ```
 
-### 2. Custom Error Handler (`OnError`)
+### 2. Centralized Error Handler (`OnError`)
 
-Configure how errors are formatted and returned to the client:
+Configure how errors are formatted and returned to clients globally:
 
 ```go
 r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
@@ -243,9 +272,9 @@ r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
 })
 ```
 
-### 3. Structured `errorx` Constructors
+### 3. Structured Error Constructors
 
-Available structured error helpers `(message, code, opts...)`:
+Pre-built structured error helpers `(message, code, opts...)`:
 
 - `routemux.BadRequestError(msg, code, opts...)` (400)
 - `routemux.UnauthorizedError(msg, code, opts...)` (401)
@@ -259,7 +288,7 @@ Available structured error helpers `(message, code, opts...)`:
 
 ## Custom 404 Handler (`NotFound`)
 
-Set a custom JSON or HTML 404 response handler. Global middlewares (`Use`) will still execute on 404 requests (e.g., logging request paths and response statuses):
+Set a custom JSON or HTML 404 response handler. Global middlewares (`Use`) continue to execute on 404 requests (e.g. logging and metrics):
 
 ```go
 r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
@@ -273,39 +302,18 @@ r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
 
 ---
 
-## Helper Utilities
+## Built-in Helpers
 
-| Helper                                 | Description                                                                     | Example                                               |
-| :------------------------------------- | :------------------------------------------------------------------------------ | :---------------------------------------------------- |
-| `routemux.Set(req, key, val)`          | Store a key-value pair in the request context (returns updated `*http.Request`) | `req = routemux.Set(req, "userID", "123")`            |
-| `routemux.Get[T](req, key)`            | Retrieve a typed value `T` from the request context (returns `(T, bool)`)       | `userID, ok := routemux.Get[string](req, "userID")`   |
-| `routemux.JSON(w, code, data)`         | Serialize and write JSON response with `Content-Type: application/json`         | `routemux.JSON(w, 200, routemux.Map{"status": "ok"})` |
-| `routemux.BindJSON(req, &dest)`        | Decode JSON request body into a struct or map                                   | `err := routemux.BindJSON(req, &user)`                |
-| `routemux.Text(w, code, text)`         | Write plain text response                                                       | `routemux.Text(w, 200, "hello")`                      |
-| `routemux.Query(req, key)`             | Get query parameter with whitespace trimmed                                     | `page := routemux.Query(req, "page")`                 |
-| `routemux.Redirect(w, req, url, code)` | Redirect client (defaults to 302 Found)                                         | `routemux.Redirect(w, req, "/login")`                 |
-| `routemux.NoContent(w)`                | Return 204 No Content                                                           | `routemux.NoContent(w)`                               |
-
-### Context Values Example:
-
-```go
-// In Auth Middleware:
-authMiddleware := func(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-        req = routemux.Set(req, "userID", "user_42")
-        next.ServeHTTP(w, req)
-    })
-}
-
-// In Route Handler:
-r.With(authMiddleware).Get("/profile", func(w http.ResponseWriter, req *http.Request) error {
-    userID, ok := routemux.Get[string](req, "userID")
-    if !ok {
-        return routemux.UnauthorizedError("Unauthorized")
-    }
-    return routemux.JSON(w, http.StatusOK, routemux.Map{"user_id": userID})
-})
-```
+| Helper                                 | Description                                                         | Example                                               |
+| :------------------------------------- | :------------------------------------------------------------------ | :---------------------------------------------------- |
+| `routemux.Set(req, key, val)`          | Stores a value in request context (returns updated `*http.Request`) | `req = routemux.Set(req, "userID", "123")`            |
+| `routemux.Get[T](req, key)`            | Retrieves typed value `T` from context (returns `(T, bool)`)        | `userID, ok := routemux.Get[string](req, "userID")`   |
+| `routemux.JSON(w, code, data)`         | Serializes and writes JSON using Go's `encoding/json/v2`            | `routemux.JSON(w, 200, routemux.Map{"status": "ok"})` |
+| `routemux.BindJSON(req, &dest)`        | Decodes JSON request body into a struct or map                      | `err := routemux.BindJSON(req, &user)`                |
+| `routemux.Text(w, code, text)`         | Writes plain text response                                          | `routemux.Text(w, 200, "hello")`                      |
+| `routemux.Query(req, key)`             | Retrieves query parameter with whitespace trimmed                   | `page := routemux.Query(req, "page")`                 |
+| `routemux.Redirect(w, req, url, code)` | Redirects client (defaults to 302 Found)                            | `routemux.Redirect(w, req, "/login")`                 |
+| `routemux.NoContent(w)`                | Sends HTTP 204 No Content                                           | `routemux.NoContent(w)`                               |
 
 ---
 
@@ -313,7 +321,7 @@ r.With(authMiddleware).Get("/profile", func(w http.ResponseWriter, req *http.Req
 
 ### Static Files (`HandleFiles`)
 
-Serve files from `http.FileSystem` (e.g., disk or `embed.FS`):
+Serve static files directly from `http.FileSystem` (e.g., disk or `embed.FS`):
 
 ```go
 r.HandleFiles("/static", http.Dir("./public"))
@@ -321,11 +329,93 @@ r.HandleFiles("/static", http.Dir("./public"))
 
 ### Mount External Handlers (`Mount`)
 
-Mount third-party routers, Swagger UI, or `http.Handler` packages:
+Mount sub-routers, Swagger UI, or third-party handlers under a prefix:
 
 ```go
 r.Mount("/swagger", swaggerHandler)
 r.Mount("/debug/pprof", pprofHandler)
+```
+
+---
+
+## Third-Party Middleware
+
+Because `routemux` adheres strictly to standard Go `func(http.Handler) http.Handler`, it is **100% compatible** with standard `net/http` middlewares across the Go ecosystem.
+
+### Compatible Middleware List
+
+| Middleware                                                                   | Author                                               | Description                                                                                                                     |
+| :--------------------------------------------------------------------------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| [authz](https://github.com/casbin/negroni-authz)                             | [Yang Luo](https://github.com/hsluoyz)               | ACL, RBAC, ABAC Authorization middleware based on [Casbin](https://github.com/casbin/casbin)                                    |
+| [binding](https://github.com/mholt/binding)                                  | [Matt Holt](https://github.com/mholt)                | Data binding from HTTP requests into structs                                                                                    |
+| [cloudwatch](https://github.com/cvillecsteele/negroni-cloudwatch)            | [Colin Steele](https://github.com/cvillecsteele)     | AWS cloudwatch metrics middleware                                                                                               |
+| [cors](https://github.com/rs/cors)                                           | [Olivier Poitrey](https://github.com/rs)             | [Cross Origin Resource Sharing](http://www.w3.org/TR/cors/) (CORS) support                                                      |
+| [csp](https://github.com/awakenetworks/csp)                                  | [Awake Networks](https://github.com/awakenetworks)   | [Content Security Policy](https://www.w3.org/TR/CSP2/) (CSP) support                                                            |
+| [delay](https://github.com/jeffbmartinez/delay)                              | [Jeff Martinez](https://github.com/jeffbmartinez)    | Add delays/latency to endpoints. Useful when testing effects of high latency                                                    |
+| [New Relic Go Agent](https://github.com/yadvendar/negroni-newrelic-go-agent) | [Yadvendar Champawat](https://github.com/yadvendar)  | Official [New Relic Go Agent](https://github.com/newrelic/go-agent)                                                             |
+| [gorelic](https://github.com/jingweno/negroni-gorelic)                       | [Jingwen Owen Ou](https://github.com/jingweno)       | New Relic agent for Go runtime                                                                                                  |
+| [Graceful](https://github.com/tylerb/graceful)                               | [Tyler Bunnell](https://github.com/tylerb)           | Graceful HTTP Shutdown                                                                                                          |
+| [gzip](https://github.com/phyber/negroni-gzip)                               | [phyber](https://github.com/phyber)                  | GZIP response compression                                                                                                       |
+| [JWT Middleware](https://github.com/auth0/go-jwt-middleware)                 | [Auth0](https://github.com/auth0)                    | Middleware checks for a JWT on the `Authorization` header on incoming requests and decodes it                                   |
+| [JWT Middleware](https://github.com/mfuentesg/go-jwtmiddleware)              | [Marcelo Fuentes](https://github.com/mfuentesg)      | JWT middleware for golang                                                                                                       |
+| [logrus](https://github.com/meatballhat/negroni-logrus)                      | [Dan Buch](https://github.com/meatballhat)           | Logrus-based logger                                                                                                             |
+| [oauth2](https://github.com/goincremental/negroni-oauth2)                    | [David Bochenski](https://github.com/bochenski)      | oAuth2 middleware                                                                                                               |
+| [onthefly](https://github.com/xyproto/onthefly)                              | [Alexander Rødseth](https://github.com/xyproto)      | Generate TinySVG, HTML and CSS on the fly                                                                                       |
+| [permissions2](https://github.com/xyproto/permissions2)                      | [Alexander Rødseth](https://github.com/xyproto)      | Cookies, users and permissions                                                                                                  |
+| [prometheus](https://github.com/zbindenren/negroni-prometheus)               | [Rene Zbinden](https://github.com/zbindenren)        | Easily create metrics endpoint for the [prometheus](http://prometheus.io) instrumentation tool                                  |
+| [prometheus](https://github.com/slok/go-prometheus-middleware)               | [Xabier Larrakoetxea](https://github.com/slok)       | [Prometheus](http://prometheus.io) metrics with multiple options that follow standards                                          |
+| [render](https://github.com/unrolled/render)                                 | [Cory Jacobsen](https://github.com/unrolled)         | Render JSON, XML and HTML templates                                                                                             |
+| [RestGate](https://github.com/pjebs/restgate)                                | [Prasanga Siripala](https://github.com/pjebs)        | Secure authentication for REST API endpoints                                                                                    |
+| [secure](https://github.com/unrolled/secure)                                 | [Cory Jacobsen](https://github.com/unrolled)         | Middleware that implements a few quick security wins                                                                            |
+| [sessions](https://github.com/goincremental/negroni-sessions)                | [David Bochenski](https://github.com/bochenski)      | Session Management                                                                                                              |
+| [stats](https://github.com/thoas/stats)                                      | [Florent Messa](https://github.com/thoas)            | Store information about your web application (response time, etc.)                                                              |
+| [VanGoH](https://github.com/auroratechnologies/vangoh)                       | [Taylor Wrobel](https://github.com/twrobel3)         | Configurable [AWS-Style](http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html) HMAC authentication middleware |
+| [xrequestid](https://github.com/pilu/xrequestid)                             | [Andrea Franz](https://github.com/pilu)              | Middleware that assigns a random X-Request-Id header to each request                                                            |
+| [mgo session](https://github.com/joeljames/nigroni-mgo-session)              | [Joel James](https://github.com/joeljames)           | Middleware that handles creating and closing mgo sessions per request                                                           |
+| [digits](https://github.com/bamarni/digits)                                  | [Bilal Amarni](https://github.com/bamarni)           | Middleware that handles [Twitter Digits](https://get.digits.com/) authentication                                                |
+| [stats](https://github.com/guptachirag/stats)                                | [Chirag Gupta](https://github.com/guptachirag/stats) | Middleware that manages qps and latency stats for your endpoints and flushes to influx db                                       |
+| [Chaos](https://github.com/falzm/chaos)                                      | [Marc Falzon](https://github.com/falzm)              | Middleware for injecting chaotic behavior into application in a programmatic way                                                |
+
+### Integration Example (CORS & Security)
+
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/rs/cors"
+    "github.com/unrolled/secure"
+    "github.com/vajra-labs/routemux"
+)
+
+func main() {
+    r := routemux.New()
+
+    // 1. Cross-Origin Resource Sharing (CORS)
+    c := cors.New(cors.Options{
+        AllowedOrigins:   []string{"https://example.com"},
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+        AllowCredentials: true,
+    })
+    r.Use(c.Handler)
+
+    // 2. Security Headers (HSTS, CSP, etc.)
+    sec := secure.New(secure.Options{
+        SSLRedirect:          true,
+        STSSeconds:           31536000,
+        FrameDeny:            true,
+        ContentTypeNosniff:   true,
+        BrowserXssFilter:     true,
+    })
+    r.Use(sec.Handler)
+
+    r.Get("/api/data", func(w http.ResponseWriter, req *http.Request) error {
+        return routemux.JSON(w, http.StatusOK, routemux.Map{"secure": true})
+    })
+
+    http.ListenAndServe(":8080", r)
+}
 ```
 
 ---
@@ -350,7 +440,7 @@ BenchmarkMux_JSONResponse-10           2,399,328 ops   499.30 ns/op   104 B/op  
 
 - **Routing Speed:** ~65–122 nanoseconds per request (~10M–17M req/sec single-core).
 - **RAM Efficiency:** ~12.6 MB for 10,000 registered routes (~1.3 KB per route).
-- **Zero Allocations on Static Routes:** Static routes run on pure fast-path with **0 B/op and 0 allocs/op**.
+- **Zero Allocations on Static Routes:** Static routes execute on a fast-path with **0 B/op and 0 allocs/op**.
 
 ---
 
