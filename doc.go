@@ -1,4 +1,4 @@
-// Package routemux is an idiomatic, high-performance HTTP micro-router and
+// Package gomux is an idiomatic, high-performance HTTP micro-router and
 // middleware stack built directly on Go 1.27+ standard library http.ServeMux.
 //
 // It provides developer-friendly routing ergonomics, modular sub-routing,
@@ -14,11 +14,11 @@
 //		"log"
 //		"net/http"
 //
-//		"github.com/vajra-labs/routemux"
+//		"github.com/vajra-labs/gomux"
 //	)
 //
 //	func main() {
-//		r := routemux.New()
+//		r := gomux.New()
 //
 //		// Global middleware
 //		r.Use(func(next http.Handler) http.Handler {
@@ -30,14 +30,14 @@
 //
 //		// Handlers accept standard func(w, r) or func(w, r) error
 //		r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
-//			return routemux.JSON(w, http.StatusOK, routemux.Map{
-//				"message": "Welcome to routemux!",
+//			return gomux.JSON(w, http.StatusOK, gomux.Map{
+//				"message": "Welcome to gomux!",
 //			})
 //		})
 //
 //		r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
 //			id := req.PathValue("id")
-//			return routemux.JSON(w, http.StatusOK, routemux.Map{
+//			return gomux.JSON(w, http.StatusOK, gomux.Map{
 //				"user_id": id,
 //			})
 //		})
@@ -47,7 +47,7 @@
 //
 // # Middleware Architecture
 //
-// routemux supports two tiers of middleware:
+// gomux supports two tiers of middleware:
 //
 // 1. Global Middleware (Use):
 // Registered on the root router before route declaration. Applies to all matching
@@ -65,9 +65,9 @@
 //
 // Sub-routers can be mounted under common URL prefixes using closures:
 //
-//	r.Route("/api/v1", func(api *routemux.Mux) {
+//	r.Route("/api/v1", func(api *gomux.Mux) {
 //		api.Get("/ping", pingHandler)
-//		api.Route("/users", func(users *routemux.Mux) {
+//		api.Route("/users", func(users *gomux.Mux) {
 //			users.Get("/", listUsers)
 //			users.Get("/{id}", getUser)
 //		})
@@ -79,10 +79,10 @@
 // Centralized error handling is configured via [Mux.OnError]:
 //
 //	r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
-//		if httpErr, ok := routemux.IsHttpError(err); ok {
+//		if httpErr, ok := gomux.IsHttpError(err); ok {
 //			return httpErr.ToJSON(w)
 //		}
-//		return routemux.JSON(w, http.StatusInternalServerError, routemux.Map{
+//		return gomux.JSON(w, http.StatusInternalServerError, gomux.Map{
 //			"error": "Internal Server Error",
 //		})
 //	})
@@ -91,8 +91,8 @@
 //
 // Type-safe helpers simplify storing and retrieving values from the request context:
 //
-//	req = routemux.Set(req, "userID", "user_123")
-//	if userID, ok := routemux.Get[string](req, "userID"); ok {
+//	req = gomux.Set(req, "userID", "user_123")
+//	if userID, ok := gomux.Get[string](req, "userID"); ok {
 //		// use userID safely
 //	}
-package routemux
+package gomux

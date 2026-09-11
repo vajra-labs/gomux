@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	mux "github.com/vajra-labs/routemux"
+	mux "github.com/vajra-labs/gomux"
 )
 
 // User represents a sample payload
@@ -55,7 +55,7 @@ func main() {
 	// 4. Public Root & Health Routes
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
 		return mux.JSON(w, http.StatusOK, mux.Map{
-			"app":     "routemux-example",
+			"app":     "gomux-example",
 			"status":  "running",
 			"version": "1.0.0",
 		})
@@ -78,7 +78,7 @@ func main() {
 				})
 				return
 			}
-			// Store authenticated user in request context using routemux.Set
+			// Store authenticated user in request context using gomux.Set
 			req = mux.Set(req, "userID", "usr_42")
 			next.ServeHTTP(w, req)
 		})
@@ -178,7 +178,7 @@ func main() {
 	}
 
 	go func() {
-		log.Println("🔥 routemux server listening on http://localhost:8080")
+		log.Println("🔥 gomux server listening on http://localhost:8080")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Server error: %v", err)
 		}

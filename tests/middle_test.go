@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vajra-labs/routemux"
+	"github.com/vajra-labs/gomux"
 )
 
 func TestMiddleware_ExecutionOrder(t *testing.T) {
-	r := routemux.New()
+	r := gomux.New()
 
 	var order []string
 
@@ -55,7 +55,7 @@ func TestMiddleware_ExecutionOrder(t *testing.T) {
 }
 
 func TestMiddleware_RunsOn404(t *testing.T) {
-	r := routemux.New()
+	r := gomux.New()
 
 	var globalRan bool
 	r.Use(func(next http.Handler) http.Handler {
@@ -78,7 +78,7 @@ func TestMiddleware_RunsOn404(t *testing.T) {
 }
 
 func TestMiddleware_ShortCircuit(t *testing.T) {
-	r := routemux.New()
+	r := gomux.New()
 
 	authMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -126,7 +126,7 @@ func TestMiddleware_ShortCircuit(t *testing.T) {
 }
 
 func TestMiddleware_GroupIsolation(t *testing.T) {
-	r := routemux.New()
+	r := gomux.New()
 
 	scopedMw := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -177,7 +177,7 @@ func TestMiddleware_GroupIsolation(t *testing.T) {
 }
 
 func TestMiddleware_RoutePrefixAndInheritance(t *testing.T) {
-	r := routemux.New()
+	r := gomux.New()
 
 	var logs []string
 
@@ -188,7 +188,7 @@ func TestMiddleware_RoutePrefixAndInheritance(t *testing.T) {
 		})
 	})
 
-	r.Route("/api/v1", func(v1 *routemux.Mux) {
+	r.Route("/api/v1", func(v1 *gomux.Mux) {
 		v1.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				logs = append(logs, "v1")

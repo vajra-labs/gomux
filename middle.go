@@ -1,4 +1,4 @@
-package routemux
+package gomux
 
 import "net/http"
 
