@@ -102,14 +102,12 @@ func (m *Mux) With(middle ...Middleware) *Mux {
 	mws := make(Middlewares, len(m.middlewares), len(m.middlewares)+len(middle))
 	copy(mws, m.middlewares)
 	mws = append(mws, middle...)
-
 	root := m.root
 	rootCount := m.rootCount
 	if root == nil {
 		root = m
 		rootCount = len(m.middlewares)
 	}
-
 	return &Mux{
 		mux:         m.mux,
 		middlewares: mws,
@@ -141,7 +139,6 @@ func (m *Mux) Route(prefix string, fn func(r *Mux)) {
 		root = m
 		rootCount = len(m.middlewares)
 	}
-
 	subGroup := &Mux{
 		mux:         m.mux,
 		middlewares: m.middlewares,
@@ -227,7 +224,6 @@ func (m *Mux) HandleFiles(pattern string, root http.FileSystem) {
 	if !strings.HasSuffix(fullPath, "/") {
 		fullPath += "/"
 	}
-
 	var handler http.Handler
 	if fullPath == "/" {
 		handler = http.FileServer(root)
@@ -264,13 +260,12 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if m.root != nil {
 		root = m.root
 	}
-
-	// Fast-path: When no custom 404 and no global middlewares, dispatch directly to ServeMux with ZERO overhead!
+	// Fast-path: When no custom 404 and no global middlewares,
+	// dispatch directly to ServeMux with ZERO overhead!
 	if root.notFound == nil && len(root.middlewares) == 0 {
 		m.mux.ServeHTTP(w, req)
 		return
 	}
-
 	root.compileOnce.Do(root.compile)
 	(*root.compiled).ServeHTTP(w, req)
 }
@@ -278,7 +273,6 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // compile prepares the root middleware and 404 pipeline once at startup.
 func (m *Mux) compile() {
 	var handler http.Handler = m.mux
-
 	if m.notFound != nil {
 		notFoundHandler := m.notFound
 		handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -319,9 +313,7 @@ func (m *Mux) compile() {
 }
 
 // ServeMux returns the underlying *http.ServeMux instance.
-func (m *Mux) ServeMux() *http.ServeMux {
-	return m.mux
-}
+func (m *Mux) ServeMux() *http.ServeMux { return m.mux }
 
 // lockRoot marks routes as registered so no root-level middlewares can be added afterwards.
 func (m *Mux) lockRoot() {
@@ -336,12 +328,10 @@ func (m *Mux) wrapMiddleware(handler http.Handler) http.Handler {
 	if m.root == nil {
 		return handler
 	}
-
 	start := m.rootCount
 	if start > len(m.middlewares) {
 		start = len(m.middlewares)
 	}
-
 	for i := len(m.middlewares) - 1; i >= start; i-- {
 		handler = m.middlewares[i](handler)
 	}
