@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vajra-labs/routemux"
+	mux "github.com/vajra-labs/routemux"
 )
 
 // User represents a sample payload
@@ -21,7 +21,7 @@ type User struct {
 }
 
 func main() {
-	r := routemux.New()
+	r := mux.New()
 
 	// 1. Global Middleware: Request Logger & Timer
 	r.Use(func(next http.Handler) http.Handler {
@@ -34,7 +34,7 @@ func main() {
 
 	// 2. Custom 404 (Not Found) Handler
 	r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
-		return routemux.JSON(w, http.StatusNotFound, routemux.Map{
+		return mux.JSON(w, http.StatusNotFound, mux.Map{
 			"error":  "Route not found",
 			"path":   req.URL.Path,
 			"method": req.Method,
@@ -43,10 +43,10 @@ func main() {
 
 	// 3. Centralized Error Handler (Handles all returned errors)
 	r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
-		if httpErr, ok := routemux.IsHttpError(err); ok {
+		if httpErr, ok := mux.IsHttpError(err); ok {
 			return httpErr.ToJSON(w)
 		}
-		return routemux.JSON(w, http.StatusInternalServerError, routemux.Map{
+		return mux.JSON(w, http.StatusInternalServerError, mux.Map{
 			"error":   "Internal Server Error",
 			"details": err.Error(),
 		})
@@ -54,7 +54,7 @@ func main() {
 
 	// 4. Public Root & Health Routes
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
-		return routemux.JSON(w, http.StatusOK, routemux.Map{
+		return mux.JSON(w, http.StatusOK, mux.Map{
 			"app":     "routemux-example",
 			"status":  "running",
 			"version": "1.0.0",
@@ -62,7 +62,7 @@ func main() {
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, req *http.Request) error {
-		return routemux.JSON(w, http.StatusOK, routemux.Map{
+		return mux.JSON(w, http.StatusOK, mux.Map{
 			"status": "healthy",
 			"uptime": time.Now().UTC().Format(time.RFC3339),
 		})
@@ -73,42 +73,42 @@ func main() {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			token := req.Header.Get("Authorization")
 			if token != "Bearer secret123" {
-				_ = routemux.JSON(w, http.StatusUnauthorized, routemux.Map{
+				_ = mux.JSON(w, http.StatusUnauthorized, mux.Map{
 					"error": "Unauthorized: invalid or missing Bearer token",
 				})
 				return
 			}
 			// Store authenticated user in request context using routemux.Set
-			req = routemux.Set(req, "userID", "usr_42")
+			req = mux.Set(req, "userID", "usr_42")
 			next.ServeHTTP(w, req)
 		})
 	}
 
 	// 6. Sub-Routing with Route: /api/v1
-	r.Route("/api/v1", func(api *routemux.Mux) {
+	r.Route("/api/v1", func(api *mux.Mux) {
 
 		// /api/v1/auth routes
-		api.Route("/auth", func(auth *routemux.Mux) {
+		api.Route("/auth", func(auth *mux.Mux) {
 			auth.Post("/login", func(w http.ResponseWriter, req *http.Request) error {
 				var creds struct {
 					Username string `json:"username"`
 					Password string `json:"password"`
 				}
-				if err := routemux.BindJSON(req, &creds); err != nil {
-					return routemux.BadRequestError("Invalid request body", "INVALID_BODY", routemux.WithCause(err))
+				if err := mux.BindJSON(req, &creds); err != nil {
+					return mux.BadRequestError("Invalid request body", "INVALID_BODY", mux.WithCause(err))
 				}
 				if creds.Username != "admin" || creds.Password != "pass123" {
-					return routemux.UnauthorizedError("Invalid credentials", "AUTH_FAILED")
+					return mux.UnauthorizedError("Invalid credentials", "AUTH_FAILED")
 				}
-				return routemux.JSON(w, http.StatusOK, routemux.Map{
+				return mux.JSON(w, http.StatusOK, mux.Map{
 					"token": "secret123",
 				})
 			})
 
 			// Inline protected route using .With()
 			auth.With(authGuard).Post("/logout", func(w http.ResponseWriter, req *http.Request) error {
-				userID, _ := routemux.Get[string](req, "userID")
-				return routemux.JSON(w, http.StatusOK, routemux.Map{
+				userID, _ := mux.Get[string](req, "userID")
+				return mux.JSON(w, http.StatusOK, mux.Map{
 					"message": "Successfully logged out",
 					"user_id": userID,
 				})
@@ -116,16 +116,16 @@ func main() {
 		})
 
 		// /api/v1/users routes (Entire group protected by authGuard)
-		api.Route("/users", func(users *routemux.Mux) {
+		api.Route("/users", func(users *mux.Mux) {
 			users.Use(authGuard)
 
 			// Get current authenticated user profile
 			users.Get("/me", func(w http.ResponseWriter, req *http.Request) error {
-				userID, ok := routemux.Get[string](req, "userID")
+				userID, ok := mux.Get[string](req, "userID")
 				if !ok {
-					return routemux.UnauthorizedError("User not found in context", "USER_NOT_FOUND")
+					return mux.UnauthorizedError("User not found in context", "USER_NOT_FOUND")
 				}
-				return routemux.JSON(w, http.StatusOK, routemux.Map{
+				return mux.JSON(w, http.StatusOK, mux.Map{
 					"user_id": userID,
 					"name":    "Admin User",
 					"role":    "admin",
@@ -136,9 +136,9 @@ func main() {
 			users.Get("/{id}", func(w http.ResponseWriter, req *http.Request) error {
 				id := req.PathValue("id")
 				if id != "42" {
-					return routemux.NotFoundError("User not found", "USER_NOT_FOUND", routemux.WithMeta("searched_id", id))
+					return mux.NotFoundError("User not found", "USER_NOT_FOUND", mux.WithMeta("searched_id", id))
 				}
-				return routemux.JSON(w, http.StatusOK, User{
+				return mux.JSON(w, http.StatusOK, User{
 					ID:    id,
 					Name:  "Gopher",
 					Email: "gopher@golang.org",
@@ -148,14 +148,14 @@ func main() {
 			// Create a new user
 			users.Post("/", func(w http.ResponseWriter, req *http.Request) error {
 				var newUser User
-				if err := routemux.BindJSON(req, &newUser); err != nil {
-					return routemux.BadRequestError("Invalid user JSON", "INVALID_BODY")
+				if err := mux.BindJSON(req, &newUser); err != nil {
+					return mux.BadRequestError("Invalid user JSON", "INVALID_BODY")
 				}
 				if newUser.Name == "" || newUser.Email == "" {
-					return routemux.BadRequestError("name and email are required fields", "VALIDATION_FAILED")
+					return mux.BadRequestError("name and email are required fields", "VALIDATION_FAILED")
 				}
 				newUser.ID = "usr_new_99"
-				return routemux.JSON(w, http.StatusCreated, newUser)
+				return mux.JSON(w, http.StatusCreated, newUser)
 			})
 		})
 	})
@@ -163,7 +163,7 @@ func main() {
 	// 7. Wildcard / Catch-All Route
 	r.Get("/static/{file...}", func(w http.ResponseWriter, req *http.Request) error {
 		filePath := req.PathValue("file")
-		return routemux.JSON(w, http.StatusOK, routemux.Map{
+		return mux.JSON(w, http.StatusOK, mux.Map{
 			"serving_virtual_file": filePath,
 		})
 	})
