@@ -164,7 +164,6 @@ func BenchmarkMux_InlineMiddleware(b *testing.B) {
 	r := gomux.New()
 	mw := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			w.Header().Set("X-Inline", "true")
 			next.ServeHTTP(w, req)
 		})
 	}

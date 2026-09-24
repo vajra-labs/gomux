@@ -324,7 +324,7 @@ func (m *Mux) handle[H HandlerType](method, path string, handler H, middle ...Mi
 	pattern := buildPattern(method, fullPath)
 	handlerFunc := m.toHandlerFunc(handler)
 	chainedHandler := m.wrapMiddleware(handlerFunc, middle...)
-	m.mux.HandleFunc(pattern, chainedHandler.ServeHTTP)
+	m.mux.Handle(pattern, chainedHandler)
 }
 
 // buildPattern formats the Go 1.22+ ServeMux routing pattern.

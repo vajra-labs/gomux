@@ -442,23 +442,23 @@ Tested on Apple M4 (Go 1.27 darwin/arm64) using `b.Loop()`:
 
 ```text
 ================ ROUTER RAM FOOTPRINT ================
-Routes: 100    | RAM Consumed: 136.68 KB  | Per-Route: ~1.3 KB
-Routes: 1,000  | RAM Consumed: 1.27 MB    | Per-Route: ~1.3 KB
-Routes: 5,000  | RAM Consumed: 6.21 MB    | Per-Route: ~1.2 KB
-Routes: 10,000 | RAM Consumed: 12.47 MB   | Per-Route: ~1.2 KB
+Routes: 100    | RAM Consumed: 134.34 KB  | Per-Route: ~1.3 KB
+Routes: 1,000  | RAM Consumed: 1.24 MB    | Per-Route: ~1.3 KB
+Routes: 5,000  | RAM Consumed: 6.09 MB    | Per-Route: ~1.2 KB
+Routes: 10,000 | RAM Consumed: 12.24 MB   | Per-Route: ~1.2 KB
 ======================================================
 
-BenchmarkMux_StaticRoute-10           15,960,913 ops    75.77 ns/op     0 B/op   0 allocs/op
-BenchmarkMux_SingleParamRoute-10      17,752,387 ops    66.62 ns/op    16 B/op   1 allocs/op
-BenchmarkMux_InlineMiddleware-10      12,347,790 ops    95.84 ns/op    16 B/op   1 allocs/op
-BenchmarkMux_MultiParamRoute-10       10,028,982 ops   119.00 ns/op    48 B/op   2 allocs/op
-BenchmarkMux_WithMiddlewarePipeline-10 9,626,169 ops   124.20 ns/op    32 B/op   2 allocs/op
-BenchmarkMux_JSONResponse-10           2,323,332 ops   516.00 ns/op   104 B/op   8 allocs/op
+BenchmarkMux_StaticRoute-10           16,533,432 ops    73.04 ns/op     0 B/op   0 allocs/op
+BenchmarkMux_SingleParamRoute-10      18,859,386 ops    63.67 ns/op    16 B/op   1 allocs/op
+BenchmarkMux_InlineMiddleware-10      16,420,912 ops    73.80 ns/op     0 B/op   0 allocs/op
+BenchmarkMux_MultiParamRoute-10       10,284,314 ops   115.80 ns/op    48 B/op   2 allocs/op
+BenchmarkMux_WithMiddlewarePipeline-10 10,010,413 ops   119.30 ns/op    32 B/op   2 allocs/op
+BenchmarkMux_JSONResponse-10           2,363,929 ops   512.70 ns/op   104 B/op   8 allocs/op
 ```
 
-- **Routing Speed:** ~66–124 nanoseconds per request (~10M–17.7M req/sec single-core).
-- **RAM Efficiency:** ~12.5 MB for 10,000 registered routes (~1.2 KB per route).
-- **Zero Allocations on Static Routes:** Static routes execute on a fast-path with **0 B/op and 0 allocs/op**.
+- **Routing Speed:** ~63–119 nanoseconds per request (~10M–18.8M req/sec single-core).
+- **RAM Efficiency:** ~12.2 MB for 10,000 registered routes (~1.2 KB per route).
+- **Zero Allocations on Static & Inline Routes:** Fast-paths execute with **0 B/op and 0 allocs/op**.
 
 ---
 
