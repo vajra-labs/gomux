@@ -18,9 +18,10 @@ If you love the reliability and speed of the Go standard library, but want the e
 - 🛡️ **Zero External Dependencies:** Built 100% on the Go standard library.
 - 🎯 **Native Path Patterns:** Uses Go's native pattern matching (`/{id}`, wildcards `/{file...}`) and HTTP verb routing.
 - 🔒 **100% Compile-Time Type Safety:** No generic `any` casting on routes; accepts both `func(w, r)` and ergonomic `func(w, r) error`.
-- 🧅 **Two-Tier Middleware Architecture:**
+- 🧅 **Three-Tier Middleware Architecture:**
   - **Global (`Use`):** Covers all routes and custom 404 handlers.
-  - **Scoped (`With`):** Applies isolated middlewares to specific routes or sub-groups without leaking.
+  - **Scoped Groups (`Route` & `With`):** Applies isolated middlewares to specific sub-groups without leaking.
+  - **Route-Level Inline:** Directly attach middlewares to any endpoint (`r.Get("/path", handler, auth, rateLimit)`) with zero allocation overhead.
 - 🌳 **Sub-Routing & Route Groups (`Route`):** Clean, modular sub-routing closures for feature modules.
 - 📦 **Built-in Helpers:** JSON serialization (`encoding/json/v2`), request binding, query helpers, typed context storage (`Set`/`Get`), and structured HTTP errors (`errorx`).
 
@@ -171,17 +172,32 @@ r.Use(corsMiddleware)
 
 > **Note:** `Use()` must be declared before registering routes. Registering `Use()` after routes will safely panic to prevent order-of-execution bugs.
 
-### `With()` (Scoped & Inline Middleware)
+### Route-Level Inline Middleware
 
-`With()` creates a sub-router with scoped middlewares. It lets you apply middlewares to a single route or chain them for specific sub-groups without leaking to other endpoints:
+Attach middlewares directly to individual route registrations in standard FIFO execution order:
 
 ```go
-// Single Route with inline middleware
-r.With(authGuard).Get("/me", getProfile)
+// Single route with inline middleware
+r.Get("/profile", getProfile, authGuard)
 
-// Route with multiple chained middlewares (auth -> rateLimit -> handler)
-r.With(authGuard, rateLimit).Post("/transfer", transferFunds)
+// Multiple inline middlewares chained in FIFO order (authGuard -> rateLimit -> handler)
+r.Post("/transfer", transferFunds, authGuard, rateLimit)
 
+// Custom HTTP method with inline middleware
+r.On("PURGE", "/cache", purgeCache, adminOnly)
+
+// Standard http.Handler with inline middleware
+r.Handle("GET", "/metrics", promHandler, basicAuth)
+
+// Static file serving with inline middleware
+r.HandleFiles("/static", http.Dir("./public"), cacheControl)
+```
+
+### `With()` (Scoped Sub-Router Grouping)
+
+`With()` creates an isolated sub-router with shared scoped middlewares for clean route grouping without leaking to sibling endpoints:
+
+```go
 // Sub-router grouping with shared middleware
 admin := r.With(authGuard, adminOnly)
 admin.Get("/dashboard", adminDashboard)
@@ -304,16 +320,16 @@ r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
 
 ## Built-in Helpers
 
-| Helper                                 | Description                                                         | Example                                               |
-| :------------------------------------- | :------------------------------------------------------------------ | :---------------------------------------------------- |
-| `gomux.Set(req, key, val)`          | Stores a value in request context (returns updated `*http.Request`) | `req = gomux.Set(req, "userID", "123")`            |
-| `gomux.Get[T](req, key)`            | Retrieves typed value `T` from context (returns `(T, bool)`)        | `userID, ok := gomux.Get[string](req, "userID")`   |
-| `gomux.JSON(w, code, data)`         | Serializes and writes JSON using Go's `encoding/json/v2`            | `gomux.JSON(w, 200, gomux.Map{"status": "ok"})` |
-| `gomux.BindJSON(req, &dest)`        | Decodes JSON request body into a struct or map                      | `err := gomux.BindJSON(req, &user)`                |
-| `gomux.Text(w, code, text)`         | Writes plain text response                                          | `gomux.Text(w, 200, "hello")`                      |
-| `gomux.Query(req, key)`             | Retrieves query parameter with whitespace trimmed                   | `page := gomux.Query(req, "page")`                 |
-| `gomux.Redirect(w, req, url, code)` | Redirects client (defaults to 302 Found)                            | `gomux.Redirect(w, req, "/login")`                 |
-| `gomux.NoContent(w)`                | Sends HTTP 204 No Content                                           | `gomux.NoContent(w)`                               |
+| Helper                              | Description                                                         | Example                                          |
+| :---------------------------------- | :------------------------------------------------------------------ | :----------------------------------------------- |
+| `gomux.Set(req, key, val)`          | Stores a value in request context (returns updated `*http.Request`) | `req = gomux.Set(req, "userID", "123")`          |
+| `gomux.Get[T](req, key)`            | Retrieves typed value `T` from context (returns `(T, bool)`)        | `userID, ok := gomux.Get[string](req, "userID")` |
+| `gomux.JSON(w, code, data)`         | Serializes and writes JSON using Go's `encoding/json/v2`            | `gomux.JSON(w, 200, gomux.Map{"status": "ok"})`  |
+| `gomux.BindJSON(req, &dest)`        | Decodes JSON request body into a struct or map                      | `err := gomux.BindJSON(req, &user)`              |
+| `gomux.Text(w, code, text)`         | Writes plain text response                                          | `gomux.Text(w, 200, "hello")`                    |
+| `gomux.Query(req, key)`             | Retrieves query parameter with whitespace trimmed                   | `page := gomux.Query(req, "page")`               |
+| `gomux.Redirect(w, req, url, code)` | Redirects client (defaults to 302 Found)                            | `gomux.Redirect(w, req, "/login")`               |
+| `gomux.NoContent(w)`                | Sends HTTP 204 No Content                                           | `gomux.NoContent(w)`                             |
 
 ---
 
@@ -426,20 +442,22 @@ Tested on Apple M4 (Go 1.27 darwin/arm64) using `b.Loop()`:
 
 ```text
 ================ ROUTER RAM FOOTPRINT ================
-Routes: 100    | RAM Consumed: 135.35 KB  | Per-Route: ~1.3 KB
-Routes: 1,000  | RAM Consumed: 1.25 MB    | Per-Route: ~1.3 KB
-Routes: 10,000 | RAM Consumed: 12.32 MB   | Per-Route: ~1.2 KB
+Routes: 100    | RAM Consumed: 136.68 KB  | Per-Route: ~1.3 KB
+Routes: 1,000  | RAM Consumed: 1.27 MB    | Per-Route: ~1.3 KB
+Routes: 5,000  | RAM Consumed: 6.21 MB    | Per-Route: ~1.2 KB
+Routes: 10,000 | RAM Consumed: 12.47 MB   | Per-Route: ~1.2 KB
 ======================================================
 
-BenchmarkMux_StaticRoute-10           15,676,762 ops    76.08 ns/op     0 B/op   0 allocs/op
-BenchmarkMux_SingleParamRoute-10      17,476,978 ops    65.24 ns/op    16 B/op   1 allocs/op
-BenchmarkMux_MultiParamRoute-10       10,084,520 ops   116.20 ns/op    48 B/op   2 allocs/op
-BenchmarkMux_WithMiddlewarePipeline-10 9,486,247 ops   122.70 ns/op    32 B/op   2 allocs/op
-BenchmarkMux_JSONResponse-10           2,399,328 ops   499.30 ns/op   104 B/op   8 allocs/op
+BenchmarkMux_StaticRoute-10           15,960,913 ops    75.77 ns/op     0 B/op   0 allocs/op
+BenchmarkMux_SingleParamRoute-10      17,752,387 ops    66.62 ns/op    16 B/op   1 allocs/op
+BenchmarkMux_InlineMiddleware-10      12,347,790 ops    95.84 ns/op    16 B/op   1 allocs/op
+BenchmarkMux_MultiParamRoute-10       10,028,982 ops   119.00 ns/op    48 B/op   2 allocs/op
+BenchmarkMux_WithMiddlewarePipeline-10 9,626,169 ops   124.20 ns/op    32 B/op   2 allocs/op
+BenchmarkMux_JSONResponse-10           2,323,332 ops   516.00 ns/op   104 B/op   8 allocs/op
 ```
 
-- **Routing Speed:** ~65–122 nanoseconds per request (~10M–17M req/sec single-core).
-- **RAM Efficiency:** ~12.6 MB for 10,000 registered routes (~1.3 KB per route).
+- **Routing Speed:** ~66–124 nanoseconds per request (~10M–17.7M req/sec single-core).
+- **RAM Efficiency:** ~12.5 MB for 10,000 registered routes (~1.2 KB per route).
 - **Zero Allocations on Static Routes:** Static routes execute on a fast-path with **0 B/op and 0 allocs/op**.
 
 ---

@@ -33,9 +33,7 @@ func New() *Mux {
 }
 
 // OnError sets a centralized error handler for handlers returning an error.
-func (m *Mux) OnError(handler ErrorHandler) {
-	m.errHandler = handler
-}
+func (m *Mux) OnError(handler ErrorHandler) { m.errHandler = handler }
 
 // NotFound sets a custom handler for 404 (Not Found) requests.
 func (m *Mux) NotFound[H HandlerType](handler H) {
@@ -151,62 +149,59 @@ func (m *Mux) Route(prefix string, fn func(r *Mux)) {
 		compiled:    root.compiled,
 	}
 	fn(subGroup)
-	if subGroup.routesLocked && m.root == nil {
-		m.routesLocked = true
-	}
 }
 
 // On registers a route handler for a custom HTTP method.
-func (m *Mux) On[H HandlerType](method, path string, handler H) {
-	m.handle(strings.ToUpper(method), path, handler)
+func (m *Mux) On[H HandlerType](method, path string, handler H, middle ...Middleware) {
+	m.handle(strings.ToUpper(method), path, handler, middle...)
 }
 
 // Get registers a GET route handler.
-func (m *Mux) Get[H HandlerType](path string, handler H) {
-	m.handle(http.MethodGet, path, handler)
+func (m *Mux) Get[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodGet, path, handler, middle...)
 }
 
 // Post registers a POST route handler.
-func (m *Mux) Post[H HandlerType](path string, handler H) {
-	m.handle(http.MethodPost, path, handler)
+func (m *Mux) Post[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodPost, path, handler, middle...)
 }
 
 // Put registers a PUT route handler.
-func (m *Mux) Put[H HandlerType](path string, handler H) {
-	m.handle(http.MethodPut, path, handler)
+func (m *Mux) Put[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodPut, path, handler, middle...)
 }
 
 // Delete registers a DELETE route handler.
-func (m *Mux) Delete[H HandlerType](path string, handler H) {
-	m.handle(http.MethodDelete, path, handler)
+func (m *Mux) Delete[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodDelete, path, handler, middle...)
 }
 
 // Patch registers a PATCH route handler.
-func (m *Mux) Patch[H HandlerType](path string, handler H) {
-	m.handle(http.MethodPatch, path, handler)
+func (m *Mux) Patch[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodPatch, path, handler, middle...)
 }
 
 // Options registers an OPTIONS route handler.
-func (m *Mux) Options[H HandlerType](path string, handler H) {
-	m.handle(http.MethodOptions, path, handler)
+func (m *Mux) Options[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodOptions, path, handler, middle...)
 }
 
 // Head registers a HEAD route handler.
-func (m *Mux) Head[H HandlerType](path string, handler H) {
-	m.handle(http.MethodHead, path, handler)
+func (m *Mux) Head[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle(http.MethodHead, path, handler, middle...)
 }
 
 // All registers a route that matches any HTTP method.
-func (m *Mux) All[H HandlerType](path string, handler H) {
-	m.handle("ALL", path, handler)
+func (m *Mux) All[H HandlerType](path string, handler H, middle ...Middleware) {
+	m.handle("ALL", path, handler, middle...)
 }
 
 // Handle registers a standard http.Handler for a method and path.
-func (m *Mux) Handle(method, path string, handler http.Handler) {
+func (m *Mux) Handle(method, path string, handler http.Handler, middle ...Middleware) {
 	m.lockRoot()
 	fullPath := cleanPrefix(m.prefix, path)
 	pattern := buildPattern(method, fullPath)
-	chained := m.wrapMiddleware(handler)
+	chained := m.wrapMiddleware(handler, middle...)
 	m.mux.Handle(pattern, chained)
 }
 
@@ -215,7 +210,7 @@ func (m *Mux) Handle(method, path string, handler http.Handler) {
 // Example:
 //
 //	r.HandleFiles("/static", http.Dir("./public"))
-func (m *Mux) HandleFiles(pattern string, root http.FileSystem) {
+func (m *Mux) HandleFiles(pattern string, root http.FileSystem, middle ...Middleware) {
 	m.lockRoot()
 	if !strings.HasSuffix(pattern, "/") {
 		pattern += "/"
@@ -230,7 +225,7 @@ func (m *Mux) HandleFiles(pattern string, root http.FileSystem) {
 	} else {
 		handler = http.StripPrefix(strings.TrimSuffix(fullPath, "/"), http.FileServer(root))
 	}
-	chained := m.wrapMiddleware(handler)
+	chained := m.wrapMiddleware(handler, middle...)
 	m.mux.Handle(fullPath, chained)
 }
 
@@ -239,7 +234,7 @@ func (m *Mux) HandleFiles(pattern string, root http.FileSystem) {
 // Example:
 //
 //	r.Mount("/swagger", httpSwagger.Handler())
-func (m *Mux) Mount(pattern string, handler http.Handler) {
+func (m *Mux) Mount(pattern string, handler http.Handler, middle ...Middleware) {
 	if handler == nil {
 		panic(fmt.Sprintf("mux: attempting to Mount() a nil handler on '%s'", pattern))
 	}
@@ -250,7 +245,7 @@ func (m *Mux) Mount(pattern string, handler http.Handler) {
 	if fullPath == "" {
 		mountPattern = "/"
 	}
-	chained := m.wrapMiddleware(http.StripPrefix(fullPath, handler))
+	chained := m.wrapMiddleware(http.StripPrefix(fullPath, handler), middle...)
 	m.mux.Handle(mountPattern, chained)
 }
 
@@ -281,24 +276,12 @@ func (m *Mux) compile() {
 				h.ServeHTTP(w, req)
 				return
 			}
-			probe := &statusRecorder{status: http.StatusOK}
-			h.ServeHTTP(probe, req)
-			if probe.status != http.StatusNotFound {
-				h.ServeHTTP(w, req)
-				return
-			}
 			notFoundHandler.ServeHTTP(w, req)
 		})
 	}
-
-	// Pre-wrap root-level global middlewares once at startup
-	for i := len(m.middlewares) - 1; i >= 0; i-- {
-		handler = m.middlewares[i](handler)
-	}
-
-	// If global middlewares exist, expose req.Pattern directly without struct copying
+	// Wrap root-level global middlewares once at startup using the middleware chain.
 	if len(m.middlewares) > 0 {
-		inner := handler
+		inner := m.middlewares.Handler(handler)
 		handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if req.Pattern == "" {
 				if _, pattern := m.mux.Handler(req); pattern != "" {
@@ -308,7 +291,6 @@ func (m *Mux) compile() {
 			inner.ServeHTTP(w, req)
 		})
 	}
-
 	*m.compiled = handler
 }
 
@@ -323,28 +305,25 @@ func (m *Mux) lockRoot() {
 	}
 }
 
-// wrapMiddleware applies only group-level middlewares to the handler (root middlewares are applied globally).
-func (m *Mux) wrapMiddleware(handler http.Handler) http.Handler {
+// wrapMiddleware applies group-level and route-level (inline) middlewares to the handler.
+func (m *Mux) wrapMiddleware(handler http.Handler, middle ...Middleware) http.Handler {
+	if len(middle) > 0 {
+		handler = Middlewares(middle).Handler(handler)
+	}
 	if m.root == nil {
 		return handler
 	}
-	start := m.rootCount
-	if start > len(m.middlewares) {
-		start = len(m.middlewares)
-	}
-	for i := len(m.middlewares) - 1; i >= start; i-- {
-		handler = m.middlewares[i](handler)
-	}
-	return handler
+	start := min(m.rootCount, len(m.middlewares))
+	return Middlewares(m.middlewares[start:]).Handler(handler)
 }
 
-// handle registers the route pattern with ServeMux and applies group-level middlewares.
-func (m *Mux) handle[H HandlerType](method, path string, handler H) {
+// handle registers the route pattern with ServeMux and applies group-level and inline middlewares.
+func (m *Mux) handle[H HandlerType](method, path string, handler H, middle ...Middleware) {
 	m.lockRoot()
 	fullPath := cleanPrefix(m.prefix, path)
 	pattern := buildPattern(method, fullPath)
 	handlerFunc := m.toHandlerFunc(handler)
-	chainedHandler := m.wrapMiddleware(handlerFunc)
+	chainedHandler := m.wrapMiddleware(handlerFunc, middle...)
 	m.mux.HandleFunc(pattern, chainedHandler.ServeHTTP)
 }
 

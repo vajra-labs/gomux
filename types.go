@@ -8,7 +8,7 @@ import (
 type Map map[string]any
 
 // Middleware wraps an http.Handler to add request/response processing.
-type Middleware func(http.Handler) http.Handler
+type Middleware func(next http.Handler) http.Handler
 
 // Handler is an HTTP handler function that returns an error.
 type Handler func(w http.ResponseWriter, req *http.Request) error
@@ -34,21 +34,4 @@ var defaultErrHandler ErrorHandler = func(
 	}
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	return nil
-}
-
-// statusRecorder captures the HTTP status code without writing the response body.
-type statusRecorder struct {
-	status int
-}
-
-func (r *statusRecorder) Header() http.Header {
-	return make(http.Header)
-}
-
-func (r *statusRecorder) Write([]byte) (int, error) {
-	return 0, nil
-}
-
-func (r *statusRecorder) WriteHeader(status int) {
-	r.status = status
 }

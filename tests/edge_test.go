@@ -196,7 +196,7 @@ func TestEdgeCase_ConcurrentRequestsRace(t *testing.T) {
 	var wg sync.WaitGroup
 	numRequests := 200
 
-	for i := 0; i < numRequests; i++ {
+	for i := range numRequests {
 		wg.Add(2)
 
 		go func(idx int) {

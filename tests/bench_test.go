@@ -37,7 +37,7 @@ func TestRouter_MemoryFootprint(t *testing.T) {
 		runtime.ReadMemStats(&m1)
 
 		r := gomux.New()
-		for i := 0; i < count; i++ {
+		for i := range count {
 			switch i % 3 {
 			case 0:
 				r.Get(fmt.Sprintf("/api/v1/resource%d/items", i), func(w http.ResponseWriter, req *http.Request) {})
@@ -156,6 +156,27 @@ func BenchmarkMux_JSONResponse(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		w.Body.Reset()
+		r.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkMux_InlineMiddleware(b *testing.B) {
+	r := gomux.New()
+	mw := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("X-Inline", "true")
+			next.ServeHTTP(w, req)
+		})
+	}
+	r.Get("/api/v1/health", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}, mw)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	w := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	for b.Loop() {
 		r.ServeHTTP(w, req)
 	}
 }

@@ -47,17 +47,21 @@
 //
 // # Middleware Architecture
 //
-// gomux supports two tiers of middleware:
+// gomux supports three tiers of middleware:
 //
 // 1. Global Middleware (Use):
 // Registered on the root router before route declaration. Applies to all matching
 // routes and 404 (Not Found) responses.
 //
-// 2. Scoped Middleware (With):
-// Inline middleware chains applied only to specific routes or isolated sub-groups
-// without leaking to sibling routes:
+// 2. Route-Level Inline Middleware:
+// Attached directly to individual route registrations:
 //
-//	r.With(authGuard).Get("/me", getProfile)
+//	r.Get("/profile", getProfile, authGuard)
+//	r.Post("/transfer", transferFunds, authGuard, rateLimit)
+//
+// 3. Scoped Sub-Router Middleware (With):
+// Isolated sub-groups sharing common middleware without leaking to sibling routes:
+//
 //	admin := r.With(authGuard, adminOnly)
 //	admin.Get("/dashboard", getDashboard)
 //

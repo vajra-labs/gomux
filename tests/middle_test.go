@@ -215,3 +215,258 @@ func TestMiddleware_RoutePrefixAndInheritance(t *testing.T) {
 		t.Fatalf("expected logs %v, got %v", expected, logs)
 	}
 }
+
+func TestMiddleware_InlineSingleRoute(t *testing.T) {
+	r := gomux.New()
+
+	var inlineRan bool
+	mw := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			inlineRan = true
+			w.Header().Set("X-Inline", "true")
+			next.ServeHTTP(w, req)
+		})
+	}
+
+	r.Get("/with-inline", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}, mw)
+
+	r.Get("/without-inline", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// 1. Route with inline middleware
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/with-inline", nil)
+	r.ServeHTTP(rec, req)
+
+	if !inlineRan || rec.Header().Get("X-Inline") != "true" {
+		t.Fatalf("expected inline middleware to run on /with-inline")
+	}
+
+	// 2. Route without inline middleware should not be affected
+	inlineRan = false
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/without-inline", nil)
+	r.ServeHTTP(rec, req)
+
+	if inlineRan || rec.Header().Get("X-Inline") != "" {
+		t.Fatalf("inline middleware leaked to /without-inline")
+	}
+}
+
+func TestMiddleware_InlineMultipleOrder(t *testing.T) {
+	r := gomux.New()
+
+	var order []string
+
+	m1 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			order = append(order, "inline1_before")
+			next.ServeHTTP(w, req)
+			order = append(order, "inline1_after")
+		})
+	}
+
+	m2 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			order = append(order, "inline2_before")
+			next.ServeHTTP(w, req)
+			order = append(order, "inline2_after")
+		})
+	}
+
+	m3 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			order = append(order, "inline3_before")
+			next.ServeHTTP(w, req)
+			order = append(order, "inline3_after")
+		})
+	}
+
+	r.Get("/ordered", func(w http.ResponseWriter, req *http.Request) {
+		order = append(order, "handler")
+		w.WriteHeader(http.StatusOK)
+	}, m1, m2, m3)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/ordered", nil)
+	r.ServeHTTP(rec, req)
+
+	expected := []string{
+		"inline1_before",
+		"inline2_before",
+		"inline3_before",
+		"handler",
+		"inline3_after",
+		"inline2_after",
+		"inline1_after",
+	}
+
+	if !reflect.DeepEqual(order, expected) {
+		t.Fatalf("expected order %v, got %v", expected, order)
+	}
+}
+
+func TestMiddleware_InlineWithGroupAndGlobal(t *testing.T) {
+	r := gomux.New()
+
+	var order []string
+
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			order = append(order, "global")
+			next.ServeHTTP(w, req)
+		})
+	})
+
+	r.Route("/api", func(api *gomux.Mux) {
+		api.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				order = append(order, "group")
+				next.ServeHTTP(w, req)
+			})
+		})
+
+		inlineMw := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				order = append(order, "inline")
+				next.ServeHTTP(w, req)
+			})
+		}
+
+		api.Get("/endpoint", func(w http.ResponseWriter, req *http.Request) {
+			order = append(order, "handler")
+			w.WriteHeader(http.StatusOK)
+		}, inlineMw)
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/endpoint", nil)
+	r.ServeHTTP(rec, req)
+
+	expected := []string{"global", "group", "inline", "handler"}
+	if !reflect.DeepEqual(order, expected) {
+		t.Fatalf("expected order %v, got %v", expected, order)
+	}
+}
+
+func TestMiddleware_InlineShortCircuit(t *testing.T) {
+	r := gomux.New()
+
+	var handlerRan bool
+	guard := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+		})
+	}
+
+	r.Get("/protected", func(w http.ResponseWriter, req *http.Request) {
+		handlerRan = true
+		w.WriteHeader(http.StatusOK)
+	}, guard)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+	if handlerRan {
+		t.Fatalf("handler should not have executed on short-circuit")
+	}
+}
+
+func TestMiddleware_InlineAllMethods(t *testing.T) {
+	r := gomux.New()
+
+	tagMiddleware := func(tag string) gomux.Middleware {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Add("X-Tag", tag)
+				next.ServeHTTP(w, req)
+			})
+		}
+	}
+
+	r.Get("/get", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("GET"))
+	r.Post("/post", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("POST"))
+	r.Put("/put", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("PUT"))
+	r.Delete("/delete", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("DELETE"))
+	r.Patch("/patch", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("PATCH"))
+	r.Options("/options", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("OPTIONS"))
+	r.Head("/head", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("HEAD"))
+	r.All("/all", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("ALL"))
+	r.On("CUSTOM", "/custom", func(w http.ResponseWriter, req *http.Request) {}, tagMiddleware("CUSTOM"))
+	r.Handle("GET", "/handle", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {}), tagMiddleware("HANDLE"))
+
+	cases := []struct {
+		method string
+		path   string
+		tag    string
+	}{
+		{http.MethodGet, "/get", "GET"},
+		{http.MethodPost, "/post", "POST"},
+		{http.MethodPut, "/put", "PUT"},
+		{http.MethodDelete, "/delete", "DELETE"},
+		{http.MethodPatch, "/patch", "PATCH"},
+		{http.MethodOptions, "/options", "OPTIONS"},
+		{http.MethodHead, "/head", "HEAD"},
+		{http.MethodGet, "/all", "ALL"},
+		{"CUSTOM", "/custom", "CUSTOM"},
+		{http.MethodGet, "/handle", "HANDLE"},
+	}
+
+	for _, c := range cases {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(c.method, c.path, nil)
+		r.ServeHTTP(rec, req)
+		if rec.Header().Get("X-Tag") != c.tag {
+			t.Errorf("[%s %s] expected X-Tag=%q, got %q", c.method, c.path, c.tag, rec.Header().Get("X-Tag"))
+		}
+	}
+}
+
+func TestMiddleware_InlineHandleFilesAndMount(t *testing.T) {
+	r := gomux.New()
+
+	mwFiles := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("X-Files-Mw", "active")
+			next.ServeHTTP(w, req)
+		})
+	}
+	mwMount := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("X-Mount-Mw", "active")
+			next.ServeHTTP(w, req)
+		})
+	}
+
+	tempDir := t.TempDir()
+	r.HandleFiles("/static", http.Dir(tempDir), mwFiles)
+
+	sub := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("mounted"))
+	})
+	r.Mount("/sub", sub, mwMount)
+
+	// Test HandleFiles with inline middleware
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/static/file.txt", nil)
+	r.ServeHTTP(rec, req)
+	if rec.Header().Get("X-Files-Mw") != "active" {
+		t.Fatalf("expected X-Files-Mw on HandleFiles")
+	}
+
+	// Test Mount with inline middleware
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/sub/test", nil)
+	r.ServeHTTP(rec, req)
+	if rec.Header().Get("X-Mount-Mw") != "active" {
+		t.Fatalf("expected X-Mount-Mw on Mount")
+	}
+}
