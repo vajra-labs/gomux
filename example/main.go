@@ -12,48 +12,48 @@ func main() {
 
 	// 1. Global Middleware (Runs on all routes & 404s)
 	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			log.Printf("[%s] %s", req.Method, req.URL.Path)
-			next.ServeHTTP(w, req)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("[%s] %s", r.Method, r.URL.Path)
+			next.ServeHTTP(w, r)
 		})
 	})
 
 	// 2. Custom 404 Handler
-	r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) error {
 		return gomux.JSON(w, http.StatusNotFound, gomux.Map{
 			"error": "Route not found",
 		})
 	})
 
 	// 3. Public Route (func(w, r) error)
-	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) error {
 		return gomux.JSON(w, http.StatusOK, gomux.Map{
 			"message": "Welcome to gomux!",
 		})
 	})
 
 	// 4. Path Parameter Route using Go native {id} matching
-	r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
+	r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
 		return gomux.JSON(w, http.StatusOK, gomux.Map{
-			"user_id": req.PathValue("id"),
+			"user_id": r.PathValue("id"),
 		})
 	})
 
 	// 5. Auth Middleware
 	authGuard := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if req.Header.Get("Authorization") != "Bearer secret" {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "Bearer secret" {
 				_ = gomux.JSON(w, http.StatusUnauthorized, gomux.Map{
 					"error": "UnAuthorized: pass 'Authorization: Bearer secret'",
 				})
 				return
 			}
-			next.ServeHTTP(w, req)
+			next.ServeHTTP(w, r)
 		})
 	}
 
 	// 6. Route-Level Inline Middleware
-	r.Get("/admin/dashboard", func(w http.ResponseWriter, req *http.Request) error {
+	r.Get("/admin/dashboard", func(w http.ResponseWriter, r *http.Request) error {
 		return gomux.JSON(w, http.StatusOK, gomux.Map{
 			"secret_data": "Top secret admin dashboard content",
 		})
@@ -61,7 +61,7 @@ func main() {
 
 	// 7. Sub-Routing with Route Groups
 	r.Route("/api", func(api *gomux.Mux) {
-		api.Get("/ping", func(w http.ResponseWriter, req *http.Request) error {
+		api.Get("/ping", func(w http.ResponseWriter, r *http.Request) error {
 			return gomux.Text(w, http.StatusOK, "pong")
 		})
 	})
