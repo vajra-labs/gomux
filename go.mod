@@ -1,3 +1,3 @@
-module github.com/vajra-labs/gomux
+module github.com/vajra-labs/mux
 
 go 1.27.0

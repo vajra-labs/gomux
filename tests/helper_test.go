@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 type userPayload struct {
@@ -18,9 +18,9 @@ type userPayload struct {
 
 func TestHelper_JSON(t *testing.T) {
 	rec := httptest.NewRecorder()
-	data := gomux.Map{"status": "ok", "count": 42}
+	data := mux.Map{"status": "ok", "count": 42}
 
-	err := gomux.JSON(rec, http.StatusOK, data)
+	err := mux.JSON(rec, http.StatusOK, data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestHelper_BindJSON(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/test", body)
 
 		var payload userPayload
-		err := gomux.BindJSON(req, &payload)
+		err := mux.BindJSON(req, &payload)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -59,7 +59,7 @@ func TestHelper_BindJSON(t *testing.T) {
 	t.Run("empty or nil body", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/test", nil)
 		var payload userPayload
-		err := gomux.BindJSON(req, &payload)
+		err := mux.BindJSON(req, &payload)
 		if err == nil {
 			t.Fatalf("expected error for empty body, got nil")
 		}
@@ -69,7 +69,7 @@ func TestHelper_BindJSON(t *testing.T) {
 		body := bytes.NewBufferString(`{invalid json}`)
 		req := httptest.NewRequest(http.MethodPost, "/test", body)
 		var payload userPayload
-		err := gomux.BindJSON(req, &payload)
+		err := mux.BindJSON(req, &payload)
 		if err == nil {
 			t.Fatalf("expected error for invalid json, got nil")
 		}
@@ -78,7 +78,7 @@ func TestHelper_BindJSON(t *testing.T) {
 
 func TestHelper_Text(t *testing.T) {
 	rec := httptest.NewRecorder()
-	err := gomux.Text(rec, http.StatusOK, "hello world")
+	err := mux.Text(rec, http.StatusOK, "hello world")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,14 +92,14 @@ func TestHelper_Text(t *testing.T) {
 
 func TestHelper_Query(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/search?q=golang&page=2", nil)
-	if gomux.Query(req, "q") != "golang" {
-		t.Errorf("expected q=golang, got %s", gomux.Query(req, "q"))
+	if mux.Query(req, "q") != "golang" {
+		t.Errorf("expected q=golang, got %s", mux.Query(req, "q"))
 	}
-	if gomux.Query(req, "page") != "2" {
-		t.Errorf("expected page=2, got %s", gomux.Query(req, "page"))
+	if mux.Query(req, "page") != "2" {
+		t.Errorf("expected page=2, got %s", mux.Query(req, "page"))
 	}
-	if gomux.Query(req, "missing") != "" {
-		t.Errorf("expected empty for missing param, got %s", gomux.Query(req, "missing"))
+	if mux.Query(req, "missing") != "" {
+		t.Errorf("expected empty for missing param, got %s", mux.Query(req, "missing"))
 	}
 }
 
@@ -107,7 +107,7 @@ func TestHelper_Redirect(t *testing.T) {
 	t.Run("default 302 Found", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/old", nil)
-		_ = gomux.Redirect(rec, req, "/new")
+		_ = mux.Redirect(rec, req, "/new")
 		if rec.Code != http.StatusFound {
 			t.Errorf("expected 302, got %d", rec.Code)
 		}
@@ -119,7 +119,7 @@ func TestHelper_Redirect(t *testing.T) {
 	t.Run("custom 301 Moved Permanently", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/old", nil)
-		_ = gomux.Redirect(rec, req, "/new", http.StatusMovedPermanently)
+		_ = mux.Redirect(rec, req, "/new", http.StatusMovedPermanently)
 		if rec.Code != http.StatusMovedPermanently {
 			t.Errorf("expected 301, got %d", rec.Code)
 		}
@@ -128,7 +128,7 @@ func TestHelper_Redirect(t *testing.T) {
 
 func TestHelper_NoContent(t *testing.T) {
 	rec := httptest.NewRecorder()
-	_ = gomux.NoContent(rec, http.StatusNoContent)
+	_ = mux.NoContent(rec, http.StatusNoContent)
 	if rec.Code != http.StatusNoContent {
 		t.Errorf("expected 204, got %d", rec.Code)
 	}
@@ -141,18 +141,18 @@ func TestHelper_ContextSetGet(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 
 	// Nil request check
-	if val, ok := gomux.Get[string](nil, "any"); ok || val != "" {
+	if val, ok := mux.Get[string](nil, "any"); ok || val != "" {
 		t.Errorf("expected false for nil request, got %v, %v", val, ok)
 	}
 
 	// Missing key check
-	if val, ok := gomux.Get[string](req, "missing"); ok || val != "" {
+	if val, ok := mux.Get[string](req, "missing"); ok || val != "" {
 		t.Errorf("expected false for missing key, got %v, %v", val, ok)
 	}
 
 	// Set string value
-	req = gomux.Set(req, "userID", "usr_12345")
-	if val, ok := gomux.Get[string](req, "userID"); !ok || val != "usr_12345" {
+	req = mux.Set(req, "userID", "usr_12345")
+	if val, ok := mux.Get[string](req, "userID"); !ok || val != "usr_12345" {
 		t.Errorf("expected usr_12345, got %v, ok=%v", val, ok)
 	}
 
@@ -161,15 +161,15 @@ func TestHelper_ContextSetGet(t *testing.T) {
 		Role string
 		ID   int
 	}
-	req = gomux.Set(req, "session", Session{Role: "admin", ID: 99})
+	req = mux.Set(req, "session", Session{Role: "admin", ID: 99})
 
-	session, ok := gomux.Get[Session](req, "session")
+	session, ok := mux.Get[Session](req, "session")
 	if !ok || session.Role != "admin" || session.ID != 99 {
 		t.Errorf("expected valid session, got %+v, ok=%v", session, ok)
 	}
 
 	// Type mismatch check (stored Session, querying int)
-	if _, ok := gomux.Get[int](req, "session"); ok {
+	if _, ok := mux.Get[int](req, "session"); ok {
 		t.Errorf("expected false on type mismatch, got true")
 	}
 }
@@ -177,11 +177,11 @@ func TestHelper_ContextSetGet(t *testing.T) {
 func TestErrorx(t *testing.T) {
 	t.Run("constructor and properties", func(t *testing.T) {
 		cause := errors.New("sql: no rows")
-		err := gomux.NotFoundError(
+		err := mux.NotFoundError(
 			"user was not found",
 			"USER_NOT_FOUND",
-			gomux.WithCause(cause),
-			gomux.WithMeta("user_id", "42"),
+			mux.WithCause(cause),
+			mux.WithMeta("user_id", "42"),
 		)
 
 		if err.Status != http.StatusNotFound {
@@ -205,19 +205,19 @@ func TestErrorx(t *testing.T) {
 	})
 
 	t.Run("IsHttpError helper", func(t *testing.T) {
-		httpErr := gomux.BadRequestError("invalid email", "INVALID_EMAIL")
-		parsed, ok := gomux.IsHttpError(httpErr)
+		httpErr := mux.BadRequestError("invalid email", "INVALID_EMAIL")
+		parsed, ok := mux.IsHttpError(httpErr)
 		if !ok || parsed == nil || parsed.Status != http.StatusBadRequest {
 			t.Fatalf("expected IsHttpError to succeed for HttpError")
 		}
 
 		stdErr := errors.New("normal error")
-		_, ok = gomux.IsHttpError(stdErr)
+		_, ok = mux.IsHttpError(stdErr)
 		if ok {
 			t.Fatalf("expected IsHttpError to return false for standard error")
 		}
 
-		_, ok = gomux.IsHttpError(nil)
+		_, ok = mux.IsHttpError(nil)
 		if ok {
 			t.Fatalf("expected IsHttpError to return false for nil")
 		}
@@ -225,7 +225,7 @@ func TestErrorx(t *testing.T) {
 
 	t.Run("ToJSON helper", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		err := gomux.ForbiddenError("access denied", "FORBIDDEN")
+		err := mux.ForbiddenError("access denied", "FORBIDDEN")
 		_ = err.ToJSON(rec)
 
 		if rec.Code != http.StatusForbidden {

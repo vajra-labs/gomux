@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 func TestRouter_HTTPMethods(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.Get("/users", func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -87,22 +87,22 @@ func TestRouter_HTTPMethods(t *testing.T) {
 }
 
 func TestRouter_PathParameters(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.Get("/posts/{id}", func(w http.ResponseWriter, req *http.Request) error {
 		id := req.PathValue("id")
-		return gomux.JSON(w, http.StatusOK, gomux.Map{"id": id})
+		return mux.JSON(w, http.StatusOK, mux.Map{"id": id})
 	})
 
 	r.Get("/users/{userId}/posts/{postId}", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, gomux.Map{
+		return mux.JSON(w, http.StatusOK, mux.Map{
 			"user_id": req.PathValue("userId"),
 			"post_id": req.PathValue("postId"),
 		})
 	})
 
 	r.Get("/files/{path...}", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.Text(w, http.StatusOK, req.PathValue("path"))
+		return mux.Text(w, http.StatusOK, req.PathValue("path"))
 	})
 
 	// Test single param
@@ -141,10 +141,10 @@ func TestRouter_PathParameters(t *testing.T) {
 }
 
 func TestRouter_RootPathExactMatch(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.Text(w, http.StatusOK, "root")
+		return mux.Text(w, http.StatusOK, "root")
 	})
 
 	// Exact root matches
@@ -165,17 +165,17 @@ func TestRouter_RootPathExactMatch(t *testing.T) {
 }
 
 func TestRouter_NotFoundHandler(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.JSON(w, http.StatusNotFound, gomux.Map{
+		return mux.JSON(w, http.StatusNotFound, mux.Map{
 			"error": "custom not found",
 			"path":  req.URL.Path,
 		})
 	})
 
 	r.Get("/exists", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.Text(w, http.StatusOK, "ok")
+		return mux.Text(w, http.StatusOK, "ok")
 	})
 
 	// Matching route
@@ -202,7 +202,7 @@ func TestRouter_NotFoundHandler(t *testing.T) {
 
 func TestRouter_ErrorHandler(t *testing.T) {
 	t.Run("default error handler", func(t *testing.T) {
-		r := gomux.New()
+		r := mux.New()
 		r.Get("/error", func(w http.ResponseWriter, req *http.Request) error {
 			return errors.New("database connection failed")
 		})
@@ -220,9 +220,9 @@ func TestRouter_ErrorHandler(t *testing.T) {
 	})
 
 	t.Run("custom OnError handler", func(t *testing.T) {
-		r := gomux.New()
+		r := mux.New()
 		r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
-			return gomux.JSON(w, http.StatusBadRequest, gomux.Map{
+			return mux.JSON(w, http.StatusBadRequest, mux.Map{
 				"custom_err": err.Error(),
 			})
 		})
@@ -246,9 +246,9 @@ func TestRouter_ErrorHandler(t *testing.T) {
 	})
 
 	t.Run("HttpError integration", func(t *testing.T) {
-		r := gomux.New()
+		r := mux.New()
 		r.Get("/unauthorized", func(w http.ResponseWriter, req *http.Request) error {
-			return gomux.UnauthorizedError("missing token", "UNAUTHORIZED")
+			return mux.UnauthorizedError("missing token", "UNAUTHORIZED")
 		})
 
 		rec := httptest.NewRecorder()
@@ -262,7 +262,7 @@ func TestRouter_ErrorHandler(t *testing.T) {
 }
 
 func TestRouter_RoutesLockedSafety(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 	r.Get("/hello", func(w http.ResponseWriter, req *http.Request) {})
 
 	defer func() {
@@ -279,7 +279,7 @@ func TestRouter_RoutesLockedSafety(t *testing.T) {
 }
 
 func TestRouter_Mount(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	sub := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		_, _ = w.Write([]byte("sub-path:" + req.URL.Path))
@@ -300,7 +300,7 @@ func TestRouter_Mount(t *testing.T) {
 }
 
 func TestRouter_Handle(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	stdHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -319,7 +319,7 @@ func TestRouter_Handle(t *testing.T) {
 }
 
 func TestRouter_PatternExposedInGlobalMiddleware(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var observedPattern string
 	r.Use(func(next http.Handler) http.Handler {
@@ -346,7 +346,7 @@ func TestRouter_PatternExposedInGlobalMiddleware(t *testing.T) {
 }
 
 func TestRouter_HandleFiles(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	tempDir := t.TempDir()
 	r.HandleFiles("/static", http.Dir(tempDir))

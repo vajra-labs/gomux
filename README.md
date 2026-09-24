@@ -1,13 +1,13 @@
-# gomux
+# mux
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/vajra-labs/gomux.svg)](https://pkg.go.dev/github.com/vajra-labs/gomux)
-[![Go Report Card](https://goreportcard.com/badge/github.com/vajra-labs/gomux)](https://goreportcard.com/report/github.com/vajra-labs/gomux)
+[![Go Reference](https://pkg.go.dev/badge/github.com/vajra-labs/mux.svg)](https://pkg.go.dev/github.com/vajra-labs/mux)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vajra-labs/mux)](https://goreportcard.com/report/github.com/vajra-labs/mux)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.27-00ADD8?logo=go)](go.mod)
 
-`gomux` is an idiomatic, lightweight, and high-performance HTTP micro-router and middleware stack for Go built directly on Go 1.27+ standard library `http.ServeMux`.
+`mux` is an idiomatic, lightweight, and high-performance HTTP micro-router and middleware stack for Go built directly on Go 1.27+ standard library `http.ServeMux`.
 
-If you love the reliability and speed of the Go standard library, but want the ergonomics of modern web frameworks like Chi or Fiber—without adding heavy external dependencies, regex overhead, or non-idiomatic abstractions—then `gomux` is a great fit.
+If you love the reliability and speed of the Go standard library, but want the ergonomics of modern web frameworks like Chi or Fiber—without adding heavy external dependencies, regex overhead, or non-idiomatic abstractions—then `mux` is a great fit.
 
 ---
 
@@ -38,11 +38,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 func main() {
-	r := gomux.New()
+	r := mux.New()
 
 	// 1. Global Middleware (Logger)
 	r.Use(func(next http.Handler) http.Handler {
@@ -54,15 +54,15 @@ func main() {
 
 	// 2. Handlers with error-return ergonomics
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, gomux.Map{
-			"message": "Welcome to gomux!",
+		return mux.JSON(w, http.StatusOK, mux.Map{
+			"message": "Welcome to mux!",
 			"status":  "ok",
 		})
 	})
 
 	r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
 		userID := req.PathValue("id")
-		return gomux.JSON(w, http.StatusOK, gomux.Map{
+		return mux.JSON(w, http.StatusOK, mux.Map{
 			"user_id": userID,
 		})
 	})
@@ -75,7 +75,7 @@ func main() {
 Install the package:
 
 ```bash
-go get github.com/vajra-labs/gomux
+go get github.com/vajra-labs/mux
 ```
 
 Then run your server:
@@ -112,26 +112,26 @@ r.On("PURGE", "/cache", purgeHandler)
 
 ### Path Parameters
 
-`gomux` leverages Go's native path pattern matching:
+`mux` leverages Go's native path pattern matching:
 
 ```go
 // Single Path Parameter
 r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
     id := req.PathValue("id")
-    return gomux.Text(w, http.StatusOK, "User ID: "+id)
+    return mux.Text(w, http.StatusOK, "User ID: "+id)
 })
 
 // Multiple Path Parameters
 r.Get("/orgs/{orgId}/repos/{repoId}", func(w http.ResponseWriter, req *http.Request) error {
     org := req.PathValue("orgId")
     repo := req.PathValue("repoId")
-    return gomux.JSON(w, http.StatusOK, gomux.Map{"org": org, "repo": repo})
+    return mux.JSON(w, http.StatusOK, mux.Map{"org": org, "repo": repo})
 })
 
 // Wildcard / Catch-All
 r.Get("/static/{file...}", func(w http.ResponseWriter, req *http.Request) error {
     filePath := req.PathValue("file")
-    return gomux.Text(w, http.StatusOK, "File: "+filePath)
+    return mux.Text(w, http.StatusOK, "File: "+filePath)
 })
 ```
 
@@ -147,7 +147,7 @@ r.Get("/ping", func(w http.ResponseWriter, req *http.Request) {
 
 // 2. Error-returning signature:
 r.Get("/ping", func(w http.ResponseWriter, req *http.Request) error {
-    return gomux.JSON(w, http.StatusOK, gomux.Map{"message": "pong"})
+    return mux.JSON(w, http.StatusOK, mux.Map{"message": "pong"})
 })
 ```
 
@@ -155,7 +155,7 @@ r.Get("/ping", func(w http.ResponseWriter, req *http.Request) error {
 
 ## Middlewares
 
-Middleware in `gomux` follows the standard Go signature:
+Middleware in `mux` follows the standard Go signature:
 
 ```go
 type Middleware func(http.Handler) http.Handler
@@ -211,18 +211,18 @@ admin.Delete("/users/{id}", deleteUser)
 Group related routes cleanly under a common URL prefix using closures:
 
 ```go
-r.Route("/api/v1", func(api *gomux.Mux) {
+r.Route("/api/v1", func(api *mux.Mux) {
     api.Use(apiVersionLogger)
 
     // Sub-route: /api/v1/auth
-    api.Route("/auth", func(auth *gomux.Mux) {
+    api.Route("/auth", func(auth *mux.Mux) {
         auth.Post("/login", loginHandler)
         auth.Post("/register", registerHandler)
         auth.With(authGuard).Post("/logout", logoutHandler)
     })
 
     // Sub-route: /api/v1/users
-    api.Route("/users", func(users *gomux.Mux) {
+    api.Route("/users", func(users *mux.Mux) {
         users.Use(authGuard)
         users.Get("/", listUsers)
         users.Get("/{id}", getUser)
@@ -240,8 +240,8 @@ type UserRouter struct {
     handler *UserHandler
 }
 
-func (u *UserRouter) Register(app *gomux.Mux) {
-    app.Route("/users", func(r *gomux.Mux) {
+func (u *UserRouter) Register(app *mux.Mux) {
+    app.Route("/users", func(r *mux.Mux) {
         r.Use(u.guard.Auth)
         r.Get("/", u.handler.List)
         r.Post("/", u.handler.Create)
@@ -266,9 +266,9 @@ Handlers can return standard Go `error` values or structured `HttpError`:
 r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
     user, err := findUser(req.PathValue("id"))
     if err != nil {
-        return gomux.NotFoundError("User not found", "USER_NOT_FOUND", gomux.WithCause(err))
+        return mux.NotFoundError("User not found", "USER_NOT_FOUND", mux.WithCause(err))
     }
-    return gomux.JSON(w, http.StatusOK, user)
+    return mux.JSON(w, http.StatusOK, user)
 })
 ```
 
@@ -278,11 +278,11 @@ Configure how errors are formatted and returned to clients globally:
 
 ```go
 r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
-    if httpErr, ok := gomux.IsHttpError(err); ok {
+    if httpErr, ok := mux.IsHttpError(err); ok {
         return httpErr.ToJSON(w)
     }
     // Fallback internal server error
-    return gomux.JSON(w, http.StatusInternalServerError, gomux.Map{
+    return mux.JSON(w, http.StatusInternalServerError, mux.Map{
         "error": "Internal Server Error",
     })
 })
@@ -292,13 +292,13 @@ r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
 
 Pre-built structured error helpers `(message, code, opts...)`:
 
-- `gomux.BadRequestError(msg, code, opts...)` (400)
-- `gomux.UnauthorizedError(msg, code, opts...)` (401)
-- `gomux.ForbiddenError(msg, code, opts...)` (403)
-- `gomux.NotFoundError(msg, code, opts...)` (404)
-- `gomux.ConflictError(msg, code, opts...)` (409)
-- `gomux.InternalServerError(msg, code, opts...)` (500)
-- `gomux.NewHttpError(status, msg, opts...)` (Custom Status)
+- `mux.BadRequestError(msg, code, opts...)` (400)
+- `mux.UnauthorizedError(msg, code, opts...)` (401)
+- `mux.ForbiddenError(msg, code, opts...)` (403)
+- `mux.NotFoundError(msg, code, opts...)` (404)
+- `mux.ConflictError(msg, code, opts...)` (409)
+- `mux.InternalServerError(msg, code, opts...)` (500)
+- `mux.NewHttpError(status, msg, opts...)` (Custom Status)
 
 ---
 
@@ -308,7 +308,7 @@ Set a custom JSON or HTML 404 response handler. Global middlewares (`Use`) conti
 
 ```go
 r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
-    return gomux.JSON(w, http.StatusNotFound, gomux.Map{
+    return mux.JSON(w, http.StatusNotFound, mux.Map{
         "error":  "Route not found",
         "path":   req.URL.Path,
         "method": req.Method,
@@ -320,16 +320,16 @@ r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
 
 ## Built-in Helpers
 
-| Helper                              | Description                                                         | Example                                          |
-| :---------------------------------- | :------------------------------------------------------------------ | :----------------------------------------------- |
-| `gomux.Set(req, key, val)`          | Stores a value in request context (returns updated `*http.Request`) | `req = gomux.Set(req, "userID", "123")`          |
-| `gomux.Get[T](req, key)`            | Retrieves typed value `T` from context (returns `(T, bool)`)        | `userID, ok := gomux.Get[string](req, "userID")` |
-| `gomux.JSON(w, code, data)`         | Serializes and writes JSON using Go's `encoding/json/v2`            | `gomux.JSON(w, 200, gomux.Map{"status": "ok"})`  |
-| `gomux.BindJSON(req, &dest)`        | Decodes JSON request body into a struct or map                      | `err := gomux.BindJSON(req, &user)`              |
-| `gomux.Text(w, code, text)`         | Writes plain text response                                          | `gomux.Text(w, 200, "hello")`                    |
-| `gomux.Query(req, key)`             | Retrieves query parameter with whitespace trimmed                   | `page := gomux.Query(req, "page")`               |
-| `gomux.Redirect(w, req, url, code)` | Redirects client (defaults to 302 Found)                            | `gomux.Redirect(w, req, "/login")`               |
-| `gomux.NoContent(w)`                | Sends HTTP 204 No Content                                           | `gomux.NoContent(w)`                             |
+| Helper                            | Description                                                         | Example                                        |
+| :-------------------------------- | :------------------------------------------------------------------ | :--------------------------------------------- |
+| `mux.Set(req, key, val)`          | Stores a value in request context (returns updated `*http.Request`) | `req = mux.Set(req, "userID", "123")`          |
+| `mux.Get[T](req, key)`            | Retrieves typed value `T` from context (returns `(T, bool)`)        | `userID, ok := mux.Get[string](req, "userID")` |
+| `mux.JSON(w, code, data)`         | Serializes and writes JSON using Go's `encoding/json/v2`            | `mux.JSON(w, 200, mux.Map{"status": "ok"})`    |
+| `mux.BindJSON(req, &dest)`        | Decodes JSON request body into a struct or map                      | `err := mux.BindJSON(req, &user)`              |
+| `mux.Text(w, code, text)`         | Writes plain text response                                          | `mux.Text(w, 200, "hello")`                    |
+| `mux.Query(req, key)`             | Retrieves query parameter with whitespace trimmed                   | `page := mux.Query(req, "page")`               |
+| `mux.Redirect(w, req, url, code)` | Redirects client (defaults to 302 Found)                            | `mux.Redirect(w, req, "/login")`               |
+| `mux.NoContent(w)`                | Sends HTTP 204 No Content                                           | `mux.NoContent(w)`                             |
 
 ---
 
@@ -356,7 +356,7 @@ r.Mount("/debug/pprof", pprofHandler)
 
 ## Third-Party Middleware
 
-Because `gomux` adheres strictly to standard Go `func(http.Handler) http.Handler`, it is **100% compatible** with standard `net/http` middlewares across the Go ecosystem.
+Because `mux` adheres strictly to standard Go `func(http.Handler) http.Handler`, it is **100% compatible** with standard `net/http` middlewares across the Go ecosystem.
 
 ### Compatible Middleware List
 
@@ -402,11 +402,11 @@ import (
 
     "github.com/rs/cors"
     "github.com/unrolled/secure"
-    "github.com/vajra-labs/gomux"
+    "github.com/vajra-labs/mux"
 )
 
 func main() {
-    r := gomux.New()
+    r := mux.New()
 
     // 1. Cross-Origin Resource Sharing (CORS)
     c := cors.New(cors.Options{
@@ -427,7 +427,7 @@ func main() {
     r.Use(sec.Handler)
 
     r.Get("/api/data", func(w http.ResponseWriter, req *http.Request) error {
-        return gomux.JSON(w, http.StatusOK, gomux.Map{"secure": true})
+        return mux.JSON(w, http.StatusOK, mux.Map{"secure": true})
     })
 
     http.ListenAndServe(":8080", r)

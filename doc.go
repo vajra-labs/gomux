@@ -1,8 +1,8 @@
-// Package gomux is an idiomatic, high-performance HTTP micro-router and
+// Package mux is an idiomatic, high-performance HTTP micro-router and
 // middleware stack built directly on Go 1.27+ standard library http.ServeMux.
 //
 // It provides developer-friendly routing ergonomics, modular sub-routing,
-// two-tier middleware chaining, typed request context helpers, and structured
+// three-tier middleware chaining, typed request context helpers, and structured
 // error handling—with zero external dependencies, zero regex overhead, and
 // zero heap allocations on static route fast paths.
 //
@@ -14,11 +14,11 @@
 //		"log"
 //		"net/http"
 //
-//		"github.com/vajra-labs/gomux"
+//		"github.com/vajra-labs/mux"
 //	)
 //
 //	func main() {
-//		r := gomux.New()
+//		r := mux.New()
 //
 //		// Global middleware
 //		r.Use(func(next http.Handler) http.Handler {
@@ -30,14 +30,14 @@
 //
 //		// Handlers accept standard func(w, r) or func(w, r) error
 //		r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
-//			return gomux.JSON(w, http.StatusOK, gomux.Map{
-//				"message": "Welcome to gomux!",
+//			return mux.JSON(w, http.StatusOK, mux.Map{
+//				"message": "Welcome to mux!",
 //			})
 //		})
 //
 //		r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
 //			id := req.PathValue("id")
-//			return gomux.JSON(w, http.StatusOK, gomux.Map{
+//			return mux.JSON(w, http.StatusOK, mux.Map{
 //				"user_id": id,
 //			})
 //		})
@@ -47,7 +47,7 @@
 //
 // # Middleware Architecture
 //
-// gomux supports three tiers of middleware:
+// mux supports three tiers of middleware:
 //
 // 1. Global Middleware (Use):
 // Registered on the root router before route declaration. Applies to all matching
@@ -69,9 +69,9 @@
 //
 // Sub-routers can be mounted under common URL prefixes using closures:
 //
-//	r.Route("/api/v1", func(api *gomux.Mux) {
+//	r.Route("/api/v1", func(api *mux.Mux) {
 //		api.Get("/ping", pingHandler)
-//		api.Route("/users", func(users *gomux.Mux) {
+//		api.Route("/users", func(users *mux.Mux) {
 //			users.Get("/", listUsers)
 //			users.Get("/{id}", getUser)
 //		})
@@ -83,10 +83,10 @@
 // Centralized error handling is configured via [Mux.OnError]:
 //
 //	r.OnError(func(w http.ResponseWriter, req *http.Request, err error) error {
-//		if httpErr, ok := gomux.IsHttpError(err); ok {
+//		if httpErr, ok := mux.IsHttpError(err); ok {
 //			return httpErr.ToJSON(w)
 //		}
-//		return gomux.JSON(w, http.StatusInternalServerError, gomux.Map{
+//		return mux.JSON(w, http.StatusInternalServerError, mux.Map{
 //			"error": "Internal Server Error",
 //		})
 //	})
@@ -95,8 +95,8 @@
 //
 // Type-safe helpers simplify storing and retrieving values from the request context:
 //
-//	req = gomux.Set(req, "userID", "user_123")
-//	if userID, ok := gomux.Get[string](req, "userID"); ok {
+//	req = mux.Set(req, "userID", "user_123")
+//	if userID, ok := mux.Get[string](req, "userID"); ok {
 //		// use userID safely
 //	}
-package gomux
+package mux

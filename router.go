@@ -1,4 +1,4 @@
-package gomux
+package mux
 
 import (
 	"fmt"

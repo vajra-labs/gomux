@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 func TestMiddleware_ExecutionOrder(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var order []string
 
@@ -55,7 +55,7 @@ func TestMiddleware_ExecutionOrder(t *testing.T) {
 }
 
 func TestMiddleware_RunsOn404(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var globalRan bool
 	r.Use(func(next http.Handler) http.Handler {
@@ -78,7 +78,7 @@ func TestMiddleware_RunsOn404(t *testing.T) {
 }
 
 func TestMiddleware_ShortCircuit(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	authMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -126,7 +126,7 @@ func TestMiddleware_ShortCircuit(t *testing.T) {
 }
 
 func TestMiddleware_GroupIsolation(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	scopedMw := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -177,7 +177,7 @@ func TestMiddleware_GroupIsolation(t *testing.T) {
 }
 
 func TestMiddleware_RoutePrefixAndInheritance(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var logs []string
 
@@ -188,7 +188,7 @@ func TestMiddleware_RoutePrefixAndInheritance(t *testing.T) {
 		})
 	})
 
-	r.Route("/api/v1", func(v1 *gomux.Mux) {
+	r.Route("/api/v1", func(v1 *mux.Mux) {
 		v1.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				logs = append(logs, "v1")
@@ -217,7 +217,7 @@ func TestMiddleware_RoutePrefixAndInheritance(t *testing.T) {
 }
 
 func TestMiddleware_InlineSingleRoute(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var inlineRan bool
 	mw := func(next http.Handler) http.Handler {
@@ -257,7 +257,7 @@ func TestMiddleware_InlineSingleRoute(t *testing.T) {
 }
 
 func TestMiddleware_InlineMultipleOrder(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var order []string
 
@@ -310,7 +310,7 @@ func TestMiddleware_InlineMultipleOrder(t *testing.T) {
 }
 
 func TestMiddleware_InlineWithGroupAndGlobal(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var order []string
 
@@ -321,7 +321,7 @@ func TestMiddleware_InlineWithGroupAndGlobal(t *testing.T) {
 		})
 	})
 
-	r.Route("/api", func(api *gomux.Mux) {
+	r.Route("/api", func(api *mux.Mux) {
 		api.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				order = append(order, "group")
@@ -353,7 +353,7 @@ func TestMiddleware_InlineWithGroupAndGlobal(t *testing.T) {
 }
 
 func TestMiddleware_InlineShortCircuit(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var handlerRan bool
 	guard := func(next http.Handler) http.Handler {
@@ -380,9 +380,9 @@ func TestMiddleware_InlineShortCircuit(t *testing.T) {
 }
 
 func TestMiddleware_InlineAllMethods(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
-	tagMiddleware := func(tag string) gomux.Middleware {
+	tagMiddleware := func(tag string) mux.Middleware {
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Add("X-Tag", tag)
@@ -430,7 +430,7 @@ func TestMiddleware_InlineAllMethods(t *testing.T) {
 }
 
 func TestMiddleware_InlineHandleFilesAndMount(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	mwFiles := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

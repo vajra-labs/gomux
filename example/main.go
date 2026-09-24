@@ -4,65 +4,65 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 func main() {
-	r := gomux.New()
+	r := mux.New()
 
 	// 1. Global Middleware (Runs on all routes & 404s)
 	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("[%s] %s", r.Method, r.URL.Path)
-			next.ServeHTTP(w, r)
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			log.Printf("[%s] %s", req.Method, req.URL.Path)
+			next.ServeHTTP(w, req)
 		})
 	})
 
 	// 2. Custom 404 Handler
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) error {
-		return gomux.JSON(w, http.StatusNotFound, gomux.Map{
+	r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
+		return mux.JSON(w, http.StatusNotFound, mux.Map{
 			"error": "Route not found",
 		})
 	})
 
 	// 3. Public Route (func(w, r) error)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, gomux.Map{
-			"message": "Welcome to gomux!",
+	r.Get("/", func(w http.ResponseWriter, req *http.Request) error {
+		return mux.JSON(w, http.StatusOK, mux.Map{
+			"message": "Welcome to mux!",
 		})
 	})
 
 	// 4. Path Parameter Route using Go native {id} matching
-	r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, gomux.Map{
-			"user_id": r.PathValue("id"),
+	r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) error {
+		return mux.JSON(w, http.StatusOK, mux.Map{
+			"user_id": req.PathValue("id"),
 		})
 	})
 
 	// 5. Auth Middleware
 	authGuard := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Authorization") != "Bearer secret" {
-				_ = gomux.JSON(w, http.StatusUnauthorized, gomux.Map{
-					"error": "UnAuthorized: pass 'Authorization: Bearer secret'",
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.Header.Get("Authorization") != "Bearer secret" {
+				_ = mux.JSON(w, http.StatusUnauthorized, mux.Map{
+					"error": "Unauthorized: pass 'Authorization: Bearer secret'",
 				})
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, req)
 		})
 	}
 
 	// 6. Route-Level Inline Middleware
-	r.Get("/admin/dashboard", func(w http.ResponseWriter, r *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, gomux.Map{
+	r.Get("/admin/dashboard", func(w http.ResponseWriter, req *http.Request) error {
+		return mux.JSON(w, http.StatusOK, mux.Map{
 			"secret_data": "Top secret admin dashboard content",
 		})
 	}, authGuard)
 
 	// 7. Sub-Routing with Route Groups
-	r.Route("/api", func(api *gomux.Mux) {
-		api.Get("/ping", func(w http.ResponseWriter, r *http.Request) error {
-			return gomux.Text(w, http.StatusOK, "pong")
+	r.Route("/api", func(api *mux.Mux) {
+		api.Get("/ping", func(w http.ResponseWriter, req *http.Request) error {
+			return mux.Text(w, http.StatusOK, "pong")
 		})
 	})
 

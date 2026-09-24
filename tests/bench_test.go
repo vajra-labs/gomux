@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 // Helper to format bytes nicely
@@ -36,7 +36,7 @@ func TestRouter_MemoryFootprint(t *testing.T) {
 		var m1, m2 runtime.MemStats
 		runtime.ReadMemStats(&m1)
 
-		r := gomux.New()
+		r := mux.New()
 		for i := range count {
 			switch i % 3 {
 			case 0:
@@ -63,7 +63,7 @@ func TestRouter_MemoryFootprint(t *testing.T) {
 // =========================================================================
 
 func BenchmarkMux_StaticRoute(b *testing.B) {
-	r := gomux.New()
+	r := mux.New()
 	r.Get("/api/v1/health", func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -78,7 +78,7 @@ func BenchmarkMux_StaticRoute(b *testing.B) {
 }
 
 func BenchmarkMux_SingleParamRoute(b *testing.B) {
-	r := gomux.New()
+	r := mux.New()
 	r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) {
 		_ = req.PathValue("id")
 		w.WriteHeader(http.StatusOK)
@@ -94,7 +94,7 @@ func BenchmarkMux_SingleParamRoute(b *testing.B) {
 }
 
 func BenchmarkMux_MultiParamRoute(b *testing.B) {
-	r := gomux.New()
+	r := mux.New()
 	r.Get("/users/{userId}/posts/{postId}", func(w http.ResponseWriter, req *http.Request) {
 		_ = req.PathValue("userId")
 		_ = req.PathValue("postId")
@@ -111,7 +111,7 @@ func BenchmarkMux_MultiParamRoute(b *testing.B) {
 }
 
 func BenchmarkMux_WithMiddlewarePipeline(b *testing.B) {
-	r := gomux.New()
+	r := mux.New()
 
 	// Global middleware
 	r.Use(func(next http.Handler) http.Handler {
@@ -143,11 +143,11 @@ func BenchmarkMux_WithMiddlewarePipeline(b *testing.B) {
 }
 
 func BenchmarkMux_JSONResponse(b *testing.B) {
-	r := gomux.New()
-	data := gomux.Map{"status": "ok", "message": "hello world", "id": 12345}
+	r := mux.New()
+	data := mux.Map{"status": "ok", "message": "hello world", "id": 12345}
 
 	r.Get("/api/json", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, data)
+		return mux.JSON(w, http.StatusOK, data)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/json", nil)
@@ -161,7 +161,7 @@ func BenchmarkMux_JSONResponse(b *testing.B) {
 }
 
 func BenchmarkMux_InlineMiddleware(b *testing.B) {
-	r := gomux.New()
+	r := mux.New()
 	mw := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			next.ServeHTTP(w, req)

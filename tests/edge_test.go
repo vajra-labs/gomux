@@ -7,12 +7,12 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/vajra-labs/gomux"
+	"github.com/vajra-labs/mux"
 )
 
 // 1. Method Precedence: Specific method (GET) vs All (ALL)
 func TestEdgeCase_MethodPrecedence(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.All("/data", func(w http.ResponseWriter, req *http.Request) {
 		_, _ = w.Write([]byte("fallback-" + req.Method))
@@ -49,12 +49,12 @@ func TestEdgeCase_MethodPrecedence(t *testing.T) {
 
 // 2. Path Cleanup Redirect vs Custom 404 (Probe mechanism verification)
 func TestEdgeCase_PathCleanupRedirectPreserved(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var notFoundCalled bool
 	r.NotFound(func(w http.ResponseWriter, req *http.Request) error {
 		notFoundCalled = true
-		return gomux.JSON(w, http.StatusNotFound, gomux.Map{"error": "not found"})
+		return mux.JSON(w, http.StatusNotFound, mux.Map{"error": "not found"})
 	})
 
 	r.Get("/a/x", func(w http.ResponseWriter, req *http.Request) {
@@ -80,11 +80,11 @@ func TestEdgeCase_PathCleanupRedirectPreserved(t *testing.T) {
 
 // 3. Deeply Nested Routes & Prefix Formatting (redundant slashes)
 func TestEdgeCase_DeeplyNestedPrefixes(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
-	r.Route("/api", func(api *gomux.Mux) {
-		api.Route("/v1", func(v1 *gomux.Mux) {
-			v1.Route("/auth", func(auth *gomux.Mux) {
+	r.Route("/api", func(api *mux.Mux) {
+		api.Route("/v1", func(v1 *mux.Mux) {
+			v1.Route("/auth", func(auth *mux.Mux) {
 				// Empty sub-path should match /api/v1/auth
 				auth.Get("", func(w http.ResponseWriter, req *http.Request) {
 					_, _ = w.Write([]byte("auth-root"))
@@ -114,7 +114,7 @@ func TestEdgeCase_DeeplyNestedPrefixes(t *testing.T) {
 
 // 4. Multi-level Nested Middleware Inheritance
 func TestEdgeCase_MultiLevelMiddlewareInheritance(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	var stack []string
 
@@ -125,7 +125,7 @@ func TestEdgeCase_MultiLevelMiddlewareInheritance(t *testing.T) {
 		})
 	})
 
-	r.Route("/api", func(api *gomux.Mux) {
+	r.Route("/api", func(api *mux.Mux) {
 		api.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				stack = append(stack, "api")
@@ -176,7 +176,7 @@ func TestEdgeCase_MultiLevelMiddlewareInheritance(t *testing.T) {
 
 // 5. Concurrent Requests Race Condition Test
 func TestEdgeCase_ConcurrentRequestsRace(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -186,11 +186,11 @@ func TestEdgeCase_ConcurrentRequestsRace(t *testing.T) {
 	})
 
 	r.Get("/user/{id}", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.JSON(w, http.StatusOK, gomux.Map{"id": req.PathValue("id")})
+		return mux.JSON(w, http.StatusOK, mux.Map{"id": req.PathValue("id")})
 	})
 
 	r.Get("/static/{file...}", func(w http.ResponseWriter, req *http.Request) error {
-		return gomux.Text(w, http.StatusOK, req.PathValue("file"))
+		return mux.Text(w, http.StatusOK, req.PathValue("file"))
 	})
 
 	var wg sync.WaitGroup
@@ -225,7 +225,7 @@ func TestEdgeCase_ConcurrentRequestsRace(t *testing.T) {
 
 // 6. Special characters in path values
 func TestEdgeCase_SpecialCharactersInPath(t *testing.T) {
-	r := gomux.New()
+	r := mux.New()
 
 	r.Get("/lookup/{query}", func(w http.ResponseWriter, req *http.Request) {
 		_, _ = w.Write([]byte(req.PathValue("query")))
